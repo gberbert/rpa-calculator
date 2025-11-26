@@ -1,0 +1,397 @@
+import React from 'react';
+import {
+    Box,
+    Typography,
+    Paper,
+    Grid,
+    Card,
+    CardContent,
+    Chip,
+    Divider,
+    Button,
+    Container,
+} from '@mui/material';
+import {
+    TrendingUp,
+    AttachMoney,
+    Schedule,
+    Assessment,
+    Refresh,
+    Download,
+} from '@mui/icons-material';
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+    LineChart,
+    Line,
+} from 'recharts';
+
+export default function ResultsDashboard({ data, onNewCalculation }) {
+    const formatCurrency = (value) => {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+            minimumFractionDigits: 2,
+        }).format(value);
+    };
+
+    const formatNumber = (value) => {
+        return new Intl.NumberFormat('pt-BR', {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+        }).format(value);
+    };
+
+    const results = data.results;
+    const complexity = data.complexity_score;
+
+    // Dados para gráfico de comparação de custos
+    const costComparisonData = [
+        {
+            name: 'AS-IS (Atual)',
+            Anual: results.as_is_cost_annual,
+            Mensal: results.as_is_cost_annual / 12,
+        },
+        {
+            name: 'TO-BE (Automação)',
+            Anual: results.to_be_cost_annual,
+            Mensal: results.to_be_cost_annual / 12,
+        },
+    ];
+
+    // Dados para gráfico de breakdown de custos TO-BE
+    const toBeCostBreakdown = [
+        { name: 'Licenças', value: results.cost_breakdown.licenseCost },
+        { name: 'Infraestrutura', value: results.cost_breakdown.infraCost },
+        { name: 'Manutenção', value: results.cost_breakdown.maintenanceCost },
+    ];
+
+    // Dados para projeção de payback
+    const paybackData = [];
+    const monthlySavings = results.monthly_savings;
+    let accumulated = -results.development_cost;
+
+    for (let month = 0; month <= Math.ceil(results.payback_months || 12); month++) {
+        accumulated += monthlySavings;
+        paybackData.push({
+            month: month,
+            accumulated: accumulated,
+        });
+    }
+
+    const COLORS = ['#667eea', '#764ba2', '#f093fb'];
+
+    const getROIColor = (roi) => {
+        if (roi >= 100) return 'success';
+        if (roi >= 50) return 'warning';
+        return 'error';
+    };
+
+    const getComplexityColor = (classification) => {
+        if (classification === 'HIGH') return 'error';
+        if (classification === 'MEDIUM') return 'warning';
+        return 'success';
+    };
+
+    return (
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+            {/* Header */}
+            <Paper
+                elevation={3}
+                sx={{
+                    p: 4,
+                    borderRadius: 2,
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    mb: 3,
+                }}
+            >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                        <Typography variant="h4" component="h1" gutterBottom fontWeight={700}>
+                            Resultados da Análise
+                        </Typography>
+                        <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                            {data.project_name}
+                        </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                        <Button
+                            variant="contained"
+                            startIcon={<Download />}
+                            sx={{
+                                backgroundColor: 'rgba(255,255,255,0.2)',
+                                '&:hover': { backgroundColor: 'rgba(255,255,255,0.3)' },
+                            }}
+                        >
+                            Exportar PDF
+                        </Button>
+                        <Button
+                            variant="contained"
+                            startIcon={<Refresh />}
+                            onClick={onNewCalculation}
+                            sx={{
+                                backgroundColor: 'rgba(255,255,255,0.2)',
+                                '&:hover': { backgroundColor: 'rgba(255,255,255,0.3)' },
+                            }}
+                        >
+                            Nova Simulação
+                        </Button>
+                    </Box>
+                </Box>
+            </Paper>
+
+            {/* KPIs Principais */}
+            <Grid container spacing={3} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card
+                        sx={{
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            color: 'white',
+                        }}
+                    >
+                        <CardContent>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                <TrendingUp sx={{ mr: 1 }} />
+                                <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                                    ROI Ano 1
+                                </Typography>
+                            </Box>
+                            <Typography variant="h3" fontWeight={700}>
+                                {formatNumber(results.roi_year_1)}%
+                            </Typography>
+                            <Chip
+                                label={results.roi_year_1 >= 100 ? 'Excelente' : results.roi_year_1 >= 50 ? 'Bom' : 'Atenção'}
+                                size="small"
+                                sx={{
+                                    mt: 1,
+                                    backgroundColor: 'rgba(255,255,255,0.2)',
+                                    color: 'white',
+                                }}
+                            />
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                        <CardContent>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                <AttachMoney sx={{ mr: 1, color: 'success.main' }} />
+                                <Typography variant="body2" color="text.secondary">
+                                    Economia Anual
+                                </Typography>
+                            </Box>
+                            <Typography variant="h4" fontWeight={700} color="success.main">
+                                {formatCurrency(results.annual_savings)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                {formatCurrency(results.monthly_savings)}/mês
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                        <CardContent>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                <Schedule sx={{ mr: 1, color: 'info.main' }} />
+                                <Typography variant="body2" color="text.secondary">
+                                    Payback
+                                </Typography>
+                            </Box>
+                            <Typography variant="h4" fontWeight={700} color="info.main">
+                                {formatNumber(results.payback_months)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                meses
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                        <CardContent>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                <Assessment sx={{ mr: 1, color: getComplexityColor(complexity.classification) }} />
+                                <Typography variant="body2" color="text.secondary">
+                                    Complexidade
+                                </Typography>
+                            </Box>
+                            <Typography variant="h4" fontWeight={700}>
+                                {complexity.classification}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                {complexity.hours.totalHours}h desenvolvimento
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Grid>
+            </Grid>
+
+            {/* Gráficos */}
+            <Grid container spacing={3} sx={{ mb: 3 }}>
+                {/* Comparação de Custos */}
+                <Grid item xs={12} md={6}>
+                    <Paper sx={{ p: 3, borderRadius: 2 }}>
+                        <Typography variant="h6" fontWeight={600} gutterBottom>
+                            Comparação de Custos
+                        </Typography>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={costComparisonData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" />
+                                <YAxis tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`} />
+                                <Tooltip formatter={(value) => formatCurrency(value)} />
+                                <Legend />
+                                <Bar dataKey="Anual" fill="#667eea" />
+                                <Bar dataKey="Mensal" fill="#764ba2" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </Paper>
+                </Grid>
+
+                {/* Breakdown Custos TO-BE */}
+                <Grid item xs={12} md={6}>
+                    <Paper sx={{ p: 3, borderRadius: 2 }}>
+                        <Typography variant="h6" fontWeight={600} gutterBottom>
+                            Composição Custos TO-BE
+                        </Typography>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                                <Pie
+                                    data={toBeCostBreakdown}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                    outerRadius={80}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                >
+                                    {toBeCostBreakdown.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip formatter={(value) => formatCurrency(value)} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </Paper>
+                </Grid>
+
+                {/* Projeção de Payback */}
+                <Grid item xs={12}>
+                    <Paper sx={{ p: 3, borderRadius: 2 }}>
+                        <Typography variant="h6" fontWeight={600} gutterBottom>
+                            Projeção de Payback
+                        </Typography>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <LineChart data={paybackData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="month" label={{ value: 'Meses', position: 'insideBottom', offset: -5 }} />
+                                <YAxis tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`} />
+                                <Tooltip formatter={(value) => formatCurrency(value)} />
+                                <Legend />
+                                <Line
+                                    type="monotone"
+                                    dataKey="accumulated"
+                                    stroke="#667eea"
+                                    strokeWidth={3}
+                                    name="Economia Acumulada"
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey={() => 0}
+                                    stroke="#ff0000"
+                                    strokeDasharray="5 5"
+                                    name="Break-even"
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </Paper>
+                </Grid>
+            </Grid>
+
+            {/* Detalhamento Financeiro */}
+            <Paper sx={{ p: 3, borderRadius: 2 }}>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                    Detalhamento Financeiro
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+
+                <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                            Investimento Inicial
+                        </Typography>
+                        <Box sx={{ pl: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="body2">Desenvolvimento ({complexity.hours.devHours}h)</Typography>
+                                <Typography variant="body2" fontWeight={600}>
+                                    {formatCurrency(results.development_cost * (complexity.hours.devHours / complexity.hours.totalHours))}
+                                </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="body2">Análise ({complexity.hours.analystHours}h)</Typography>
+                                <Typography variant="body2" fontWeight={600}>
+                                    {formatCurrency(results.development_cost * (complexity.hours.analystHours / complexity.hours.totalHours))}
+                                </Typography>
+                            </Box>
+                            <Divider sx={{ my: 1 }} />
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography variant="body1" fontWeight={600}>Total</Typography>
+                                <Typography variant="body1" fontWeight={700} color="primary">
+                                    {formatCurrency(results.development_cost)}
+                                </Typography>
+                            </Box>
+                        </Box>
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                            Custos Operacionais Anuais (TO-BE)
+                        </Typography>
+                        <Box sx={{ pl: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="body2">Licenças RPA</Typography>
+                                <Typography variant="body2" fontWeight={600}>
+                                    {formatCurrency(results.cost_breakdown.licenseCost)}
+                                </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="body2">Infraestrutura</Typography>
+                                <Typography variant="body2" fontWeight={600}>
+                                    {formatCurrency(results.cost_breakdown.infraCost)}
+                                </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="body2">Manutenção (15%)</Typography>
+                                <Typography variant="body2" fontWeight={600}>
+                                    {formatCurrency(results.cost_breakdown.maintenanceCost)}
+                                </Typography>
+                            </Box>
+                            <Divider sx={{ my: 1 }} />
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography variant="body1" fontWeight={600}>Total Anual</Typography>
+                                <Typography variant="body1" fontWeight={700} color="primary">
+                                    {formatCurrency(results.to_be_cost_annual)}
+                                </Typography>
+                            </Box>
+                        </Box>
+                    </Grid>
+                </Grid>
+            </Paper>
+        </Container>
+    );
+}
