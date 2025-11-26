@@ -1,64 +1,51 @@
 import { getFirestore } from '../config/firebase.js';
 
-/**
- * Controller para configurações globais
- */
 class SettingsController {
     constructor() {
         this.db = getFirestore();
     }
 
-    /**
-     * GET /api/settings - Busca configurações globais
-     */
     async getSettings(req, res) {
         try {
             const doc = await this.db.collection('settings').doc('global_config').get();
-
+            
             if (!doc.exists) {
-                // Retorna configurações padrão
+                // CORREÇÃO: Padrão Enterprise atualizado
                 const defaultSettings = {
-                    rates: {
-                        dev_hourly: 120.0,
-                        analyst_hourly: 150.0,
-                        infra_annual: 5000.0,
-                        license_annual: 15000.0,
+                    team_composition: [],
+                    infra_costs: {
+                        rpa_license_annual: 0,
+                        virtual_machine_annual: 0,
+                        database_annual: 0
                     },
-                    baselines: {
-                        low: 104,
-                        medium: 208,
-                        high: 416,
-                    },
+                    baselines: { low: 104, medium: 208, high: 416 },
+                    updated_at: new Date().toISOString()
                 };
-
-                return res.status(200).json({
-                    success: true,
-                    data: defaultSettings,
-                });
+                return res.status(200).json({ success: true, data: defaultSettings });
             }
 
-            res.status(200).json({
-                success: true,
-                data: doc.data(),
-            });
+            res.status(200).json({ success: true, data: doc.data() });
         } catch (error) {
             console.error('Error fetching settings:', error);
-            res.status(500).json({
-                success: false,
-                error: error.message || 'Internal server error',
-            });
+            res.status(500).json({ success: false, error: error.message });
         }
     }
 
-    /**
-     * PUT /api/settings - Atualiza configurações globais
-     */
     async updateSettings(req, res) {
         try {
             const updates = req.body;
 
+            // Log para debug no servidor
+            console.log('Recebendo update:', JSON.stringify(updates, null, 2));
+
+            // Firestore não aceita undefined. Vamos garantir que campos opcionais existam.
+            // O frontend já deve tratar, mas garantimos aqui também.
+            if (!updates.team_composition) updates.team_composition = [];
+            
+            // Salvamos com merge: true para não apagar campos que não foram enviados
             await this.db.collection('settings').doc('global_config').set(updates, { merge: true });
 
+            // Lemos de volta para confirmar a gravação
             const updatedDoc = await this.db.collection('settings').doc('global_config').get();
 
             res.status(200).json({
@@ -67,9 +54,10 @@ class SettingsController {
             });
         } catch (error) {
             console.error('Error updating settings:', error);
+            // Retorna o erro exato para o frontend
             res.status(500).json({
                 success: false,
-                error: error.message || 'Internal server error',
+                error: error.message || 'Erro interno ao salvar configurações',
             });
         }
     }
