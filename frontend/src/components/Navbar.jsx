@@ -1,3 +1,4 @@
+// frontend/src/components/Navbar.jsx
 import React, { useState } from 'react';
 import { 
   AppBar, Toolbar, Typography, Button, Box, Container, 
@@ -6,11 +7,12 @@ import {
 } from '@mui/material';
 import { Calculate, History, Settings, Menu as MenuIcon, Close, Logout, Person } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { appVersion } from '../version'; // <--- IMPORTAR A VERSÃO AQUI
+import { appVersion } from '../version';
 
 export default function Navbar({ currentView, onViewChange }) {
   const { currentUser, isAdmin, logout } = useAuth();
   const theme = useTheme();
+  // Breakpoint LG para mudar para menu mobile mais cedo em tablets/laptops
   const isMobile = useMediaQuery(theme.breakpoints.down('lg')); 
   
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -45,35 +47,34 @@ export default function Navbar({ currentView, onViewChange }) {
   }
 
   return (
-    <AppBar position="static" sx={{ background: 'linear-gradient(90deg, #1a237e 0%, #283593 100%)', mb: 4 }}>
+    <AppBar position="static" sx={{ background: 'linear-gradient(90deg, #1a237e 0%, #283593 100%)', mb: 0 }}>
       <Container maxWidth="xl">
-        <Toolbar disableGutters>
+        <Toolbar disableGutters sx={{ minHeight: { xs: 56, sm: 64 } }}>
           
-          {/* LOGO COM TOOLTIP DE VERSÃO NO DESKTOP */}
-          <Tooltip title={`Versão: v${appVersion}`}>
+          {/* LOGO + TÍTULO */}
+          <Box 
+            onClick={handleLogoClick}
+            sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              cursor: 'pointer', 
+              mr: 2,
+              flexGrow: 1,
+              overflow: 'hidden' // Previne overflow do título
+            }}
+          >
             <Box 
-              onClick={handleLogoClick}
-              sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                cursor: 'pointer', 
-                mr: 2,
-                flexGrow: 1,
-                '&:hover': { opacity: 0.9 }
-              }}
-            >
-              <Box 
-                  component="img"
-                  src="/logo.png"
-                  alt="Logo"
-                  sx={{ 
-                      height: 40,
-                      width: 'auto',
-                      mr: 1.5,
-                  }}
-              />
-              
-              <Box>
+                component="img"
+                src="/logo.png"
+                alt="Logo"
+                sx={{ 
+                    height: { xs: 32, sm: 40 }, // Logo menor no mobile
+                    width: 'auto',
+                    mr: 1.5,
+                }}
+            />
+            
+            <Box sx={{ minWidth: 0 }}> {/* minWidth 0 permite text-overflow funcionar */}
                 <Typography 
                     variant="h6" 
                     component="div" 
@@ -81,26 +82,36 @@ export default function Navbar({ currentView, onViewChange }) {
                         fontWeight: 'bold', 
                         userSelect: 'none', 
                         whiteSpace: 'nowrap',
-                        lineHeight: 1.2
+                        lineHeight: 1.2,
+                        // Fonte dinâmica para não quebrar no mobile S20
+                        fontSize: 'clamp(1rem, 4vw, 1.25rem)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
                     }}
                 >
                     RPA ROI Navigator
                 </Typography>
-                {/* Versão visível apenas em desktop, pequena abaixo do logo (opcional) */}
                 {!isMobile && (
                   <Typography variant="caption" sx={{ opacity: 0.6, fontSize: '0.7rem', display: 'block' }}>
                     v{appVersion}
                   </Typography>
                 )}
-              </Box>
             </Box>
-          </Tooltip>
+          </Box>
 
           {isMobile ? (
-            <IconButton size="large" edge="end" color="inherit" onClick={handleDrawerToggle}>
+            // MENU MOBILE
+            <IconButton 
+                size="large" 
+                edge="end" 
+                color="inherit" 
+                onClick={handleDrawerToggle}
+                sx={{ ml: 1 }}
+            >
               {mobileOpen ? <Close /> : <MenuIcon />}
             </IconButton>
           ) : (
+            // MENU DESKTOP
             <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
               <Stack direction="row" spacing={1}>
                 {menuItems.map((item) => (
@@ -114,8 +125,7 @@ export default function Navbar({ currentView, onViewChange }) {
                         borderRadius: 0, 
                         opacity: currentView === item.view ? 1 : 0.8,
                         whiteSpace: 'nowrap',
-                        px: 2,
-                        minWidth: 'auto'
+                        px: 2
                     }}
                   >
                     {item.label}
@@ -137,7 +147,7 @@ export default function Navbar({ currentView, onViewChange }) {
           )}
         </Toolbar>
 
-        {/* MENU MOBILE */}
+        {/* GAVETA MOBILE */}
         <Collapse in={isMobile && mobileOpen} timeout="auto" unmountOnExit>
           <Box sx={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
             <List component="nav">
@@ -146,12 +156,11 @@ export default function Navbar({ currentView, onViewChange }) {
                   key={item.view} onClick={() => handleNavigation(item.view)} selected={currentView === item.view}
                   sx={{ 
                     '&.Mui-selected': { backgroundColor: 'rgba(255, 255, 255, 0.2)' }, 
-                    '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.1)' },
                     paddingY: 2 
                   }}
                 >
                   <ListItemIcon sx={{ minWidth: 40 }}>{item.icon}</ListItemIcon>
-                  <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: currentView === item.view ? 'bold' : 'medium', color: 'white' }} />
+                  <ListItemText primary={item.label} primaryTypographyProps={{ fontWeight: 'medium', color: 'white' }} />
                 </ListItemButton>
               ))}
               <Divider sx={{ borderColor: 'rgba(255,255,255,0.2)' }} />
@@ -160,11 +169,9 @@ export default function Navbar({ currentView, onViewChange }) {
                   <ListItemText primary="Sair" primaryTypographyProps={{ color: 'white' }} />
               </ListItemButton>
             </List>
-            
-            {/* VERSÃO NO RODAPÉ DO MENU MOBILE */}
             <Box sx={{ p: 2, textAlign: 'center', opacity: 0.5 }}>
                 <Typography variant="caption" sx={{ color: 'white' }}>
-                    RPA ROI Navigator v{appVersion}
+                    v{appVersion}
                 </Typography>
             </Box>
           </Box>
