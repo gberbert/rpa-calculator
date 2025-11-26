@@ -7,8 +7,6 @@ import { getFirestore } from '../config/firebase.js';
 class ComplexityService {
     /**
      * Calcula a pontuação de complexidade baseada nos critérios
-     * @param {Object} complexity - Objeto com os critérios de complexidade
-     * @returns {Object} - { totalPoints, classification }
      */
     calculateComplexityScore(complexity) {
         let totalPoints = 0;
@@ -22,33 +20,19 @@ class ComplexityService {
         // 2. Tipo de Dados
         const dataType = complexity.dataType || 'structured';
         switch (dataType) {
-            case 'structured': // Excel, CSV
-                totalPoints += 1;
-                break;
-            case 'text': // E-mail, Texto
-                totalPoints += 2;
-                break;
-            case 'ocr': // Imagem, OCR
-                totalPoints += 5;
-                break;
-            default:
-                totalPoints += 1;
+            case 'structured': totalPoints += 1; break;
+            case 'text': totalPoints += 2; break;
+            case 'ocr': totalPoints += 5; break;
+            default: totalPoints += 1;
         }
 
         // 3. Ambiente
         const environment = complexity.environment || 'web';
         switch (environment) {
-            case 'web': // Web/Local
-                totalPoints += 1;
-                break;
-            case 'sap': // SAP/Mainframe
-                totalPoints += 2;
-                break;
-            case 'citrix': // Citrix/Remoto
-                totalPoints += 4;
-                break;
-            default:
-                totalPoints += 1;
+            case 'web': totalPoints += 1; break;
+            case 'sap': totalPoints += 2; break;
+            case 'citrix': totalPoints += 4; break;
+            default: totalPoints += 1;
         }
 
         // 4. Regras/Passos
@@ -67,30 +51,11 @@ class ComplexityService {
             classification,
         };
     }
-
-    /**
-     * Retorna as horas base de desenvolvimento e análise
-     * @param {String} classification - LOW, MEDIUM, HIGH
-     * @returns {Object} - { devHours, analystHours, totalHours }
-     */
-    getBaselineHours(classification) {
-        const baselines = {
-            LOW: { devHours: 80, analystHours: 24 },
-            MEDIUM: { devHours: 160, analystHours: 48 },
-            HIGH: { devHours: 320, analystHours: 96 },
-        };
-
-        const baseline = baselines[classification] || baselines.MEDIUM;
-        return {
-            ...baseline,
-            totalHours: baseline.devHours + baseline.analystHours,
-        };
-    }
 }
 
 /**
  * Serviço de Cálculo Financeiro
- * Implementa as fórmulas de ROI, Payback e custos
+ * Implementa as fórmulas de ROI, Payback e custos (Versão Enterprise)
  */
 class FinancialService {
     constructor() {
@@ -99,29 +64,18 @@ class FinancialService {
 
     /**
      * Busca as taxas globais do Firestore
-     * @returns {Object} - Taxas e configurações globais
      */
     async getGlobalRates() {
         try {
             const settingsDoc = await this.db.collection('settings').doc('global_config').get();
-
             if (!settingsDoc.exists) {
-                // Retorna valores padrão se não existir
+                // Fallback de segurança se o banco estiver vazio
                 return {
-                    rates: {
-                        dev_hourly: 120.0,
-                        analyst_hourly: 150.0,
-                        infra_annual: 5000.0,
-                        license_annual: 15000.0,
-                    },
-                    baselines: {
-                        low: 104,
-                        medium: 208,
-                        high: 416,
-                    },
+                    team_composition: [{ role: 'Dev Padrão', rate: 120.0, share: 1.0 }],
+                    infra_costs: { rpa_license_annual: 15000.0, virtual_machine_annual: 5000.0 },
+                    baselines: { low: 100, medium: 240, high: 480 }
                 };
             }
-
             return settingsDoc.data();
         } catch (error) {
             console.error('Error fetching global rates:', error);
@@ -131,126 +85,82 @@ class FinancialService {
 
     /**
      * Calcula o custo AS-IS (situação atual)
-     * @param {Object} inputs - { volume, aht, fteCost, errorRate }
-     * @returns {Number} - Custo anual AS-IS
      */
     calculateAsIsCost(inputs) {
         const { volume, aht, fteCost, errorRate = 0 } = inputs;
-
         // Custo por minuto do FTE (assumindo 160h/mês = 9600min/mês)
         const costPerMinute = fteCost / 9600;
-
-        // Custo AS-IS Anual = (Volume * AHT * 12) * Custo_Minuto * (1 + Taxa_Erro)
+        // Custo AS-IS Anual
         const asIsCost = (volume * aht * 12) * costPerMinute * (1 + errorRate / 100);
-
         return Math.round(asIsCost * 100) / 100;
     }
 
     /**
-     * Calcula o custo de desenvolvimento
-     * @param {Object} hours - { devHours, analystHours }
-     * @param {Object} rates - { dev_hourly, analyst_hourly }
-     * @returns {Number} - Custo total de desenvolvimento
+     * Calcula o custo de desenvolvimento baseado no Mix da Squad
      */
-    calculateDevelopmentCost(hours, rates) {
-        const devCost = hours.devHours * rates.dev_hourly;
-        const analystCost = hours.analystHours * rates.analyst_hourly;
+    calculateDevelopmentCost(totalHours, teamComposition) {
+        // Fallback se não houver composição definida
+        if (!teamComposition || teamComposition.length === 0) {
+            return totalHours * 120; // Taxa padrão de segurança
+        }
 
-        return Math.round((devCost + analystCost) * 100) / 100;
-    }
+        // Custo Blended (Misturado) = Soma (Taxa * %Participação)
+        let blendedHourlyRate = 0;
+        teamComposition.forEach(member => {
+            blendedHourlyRate += (member.rate * member.share);
+        });
 
-    /**
-     * Calcula o custo TO-BE (com automação)
-     * @param {Object} params - { developmentCost, rates, exceptionRate }
-     * @returns {Object} - Breakdown do custo TO-BE
-     */
-    calculateToBeCost(params) {
-        const { developmentCost, rates, exceptionRate = 5 } = params;
-
-        // Custo de licenças anual
-        const licenseCost = rates.license_annual;
-
-        // Custo de infraestrutura anual
-        const infraCost = rates.infra_annual;
-
-        // Manutenção (15% do custo de desenvolvimento)
-        const maintenanceCost = developmentCost * 0.15;
-
-        // Custo de exceções manuais (% do volume que ainda precisa intervenção)
-        // Simplificado: assumimos que é uma % pequena do custo AS-IS
-        const exceptionCost = 0; // Pode ser parametrizado futuramente
-
-        const totalToBeCost = licenseCost + infraCost + maintenanceCost + exceptionCost;
-
-        return {
-            licenseCost: Math.round(licenseCost * 100) / 100,
-            infraCost: Math.round(infraCost * 100) / 100,
-            maintenanceCost: Math.round(maintenanceCost * 100) / 100,
-            exceptionCost: Math.round(exceptionCost * 100) / 100,
-            totalToBeCost: Math.round(totalToBeCost * 100) / 100,
-        };
-    }
-
-    /**
-     * Calcula o ROI do primeiro ano
-     * @param {Number} asIsCost - Custo AS-IS anual
-     * @param {Number} toBeCost - Custo TO-BE anual
-     * @param {Number} developmentCost - Custo de desenvolvimento
-     * @returns {Number} - ROI em percentual
-     */
-    calculateROI(asIsCost, toBeCost, developmentCost) {
-        // ROI = ((Economia - Investimento) / Investimento) * 100
-        const savings = asIsCost - toBeCost;
-        const roi = ((savings - developmentCost) / developmentCost) * 100;
-
-        return Math.round(roi * 100) / 100;
+        const totalCost = totalHours * blendedHourlyRate;
+        return Math.round(totalCost * 100) / 100;
     }
 
     /**
      * Calcula o período de payback em meses
-     * @param {Number} developmentCost - Investimento inicial
-     * @param {Number} monthlySavings - Economia mensal
-     * @returns {Number} - Meses até payback
      */
     calculatePayback(developmentCost, monthlySavings) {
         if (monthlySavings <= 0) return null; // Nunca haverá payback
-
         const months = developmentCost / monthlySavings;
         return Math.round(months * 10) / 10;
     }
 
     /**
-     * Calcula todos os indicadores financeiros
-     * @param {Object} inputs - Inputs AS-IS
-     * @param {Object} complexity - Critérios de complexidade
-     * @returns {Object} - Todos os resultados financeiros
+     * Calcula todos os indicadores financeiros (Enterprise)
      */
     async calculateFullROI(inputs, complexity) {
-        // 1. Buscar taxas globais
+        // 1. Carregar configurações do banco
         const config = await this.getGlobalRates();
-
-        // 2. Calcular complexidade
+        
+        // 2. Calcular complexidade e horas
         const complexityService = new ComplexityService();
         const complexityScore = complexityService.calculateComplexityScore(complexity);
-        const hours = complexityService.getBaselineHours(complexityScore.classification);
+        
+        // Mapeia a classificação para horas (fallback se não existir no banco)
+        const baselines = config.baselines || { low: 100, medium: 240, high: 480 };
+        const totalHours = baselines[complexityScore.classification.toLowerCase()];
 
-        // 3. Calcular custo de desenvolvimento
-        const developmentCost = this.calculateDevelopmentCost(hours, config.rates);
+        // 3. Custo de Desenvolvimento (Squad Ponderada)
+        // Garante fallback se team_composition não existir
+        const teamComp = config.team_composition || [{ role: 'Dev', rate: 120, share: 1 }];
+        const developmentCost = this.calculateDevelopmentCost(totalHours, teamComp);
 
-        // 4. Calcular custo AS-IS
+        // 4. Custo AS-IS (Atual)
         const asIsCost = this.calculateAsIsCost(inputs);
 
-        // 5. Calcular custo TO-BE
-        const toBeCostBreakdown = this.calculateToBeCost({
-            developmentCost,
-            rates: config.rates,
-        });
+        // 5. Custo TO-BE (Licenças + Infra + Manutenção)
+        // Garante fallback de custos de infra
+        const infraCosts = config.infra_costs || { 
+            rpa_license_annual: 15000, 
+            virtual_machine_annual: 5000,
+            database_annual: 0 
+        };
 
-        // 6. Calcular ROI
-        const roi = this.calculateROI(asIsCost, toBeCostBreakdown.totalToBeCost, developmentCost);
+        const annualInfraCost = Object.values(infraCosts).reduce((a, b) => a + b, 0);
+        const maintenanceCost = developmentCost * 0.15; // 15% do dev para sustentação
+        const totalToBeCost = annualInfraCost + maintenanceCost;
 
-        // 7. Calcular Payback
-        const annualSavings = asIsCost - toBeCostBreakdown.totalToBeCost;
+        // 6. ROI e Payback
+        const annualSavings = asIsCost - totalToBeCost;
+        const roi = ((annualSavings - developmentCost) / developmentCost) * 100;
         const monthlySavings = annualSavings / 12;
         const paybackMonths = this.calculatePayback(developmentCost, monthlySavings);
 
@@ -258,25 +168,27 @@ class FinancialService {
             complexity: {
                 score: complexityScore.totalPoints,
                 classification: complexityScore.classification,
-                hours: hours,
+                hours: { totalHours }
             },
             costs: {
-                asIs: {
-                    annual: asIsCost,
-                    monthly: Math.round((asIsCost / 12) * 100) / 100,
+                asIs: { 
+                    annual: asIsCost, 
+                    monthly: Math.round((asIsCost / 12) * 100) / 100 
                 },
                 development: developmentCost,
                 toBe: {
-                    ...toBeCostBreakdown,
-                    annual: toBeCostBreakdown.totalToBeCost,
-                    monthly: Math.round((toBeCostBreakdown.totalToBeCost / 12) * 100) / 100,
+                    licenseCost: infraCosts.rpa_license_annual,
+                    infraCost: infraCosts.virtual_machine_annual + (infraCosts.database_annual || 0),
+                    maintenanceCost,
+                    totalToBeCost,
+                    annual: totalToBeCost
                 },
             },
             roi: {
-                year1: roi,
+                year1: Math.round(roi * 100) / 100,
                 annualSavings: Math.round(annualSavings * 100) / 100,
                 monthlySavings: Math.round(monthlySavings * 100) / 100,
-                paybackMonths: paybackMonths,
+                paybackMonths,
             },
         };
     }

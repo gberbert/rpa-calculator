@@ -1,3 +1,4 @@
+// frontend/src/components/ROIWizard.jsx
 import React, { useState } from 'react';
 import {
     Box,
@@ -10,6 +11,8 @@ import {
     Container,
     CircularProgress,
     Alert,
+    useTheme,
+    useMediaQuery
 } from '@mui/material';
 import {
     NavigateNext,
@@ -23,32 +26,31 @@ import Step4Review from './steps/Step4Review';
 import { projectService } from '../services/api';
 
 const steps = [
-    'Informações do Projeto',
-    'Cenário AS-IS',
+    'Projeto', // Encurtei os nomes para mobile
+    'Cenário',
     'Complexidade',
     'Revisão',
 ];
 
 export default function ROIWizard({ onComplete }) {
+    const theme = useTheme();
+    // Detecta se é mobile (tela menor que 'sm' - aprox 600px)
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
     const [activeStep, setActiveStep] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
     // Estado do formulário
     const [formData, setFormData] = useState({
-        // Step 1
         projectName: '',
         ownerUid: 'anonymous',
-
-        // Step 2 - AS-IS Inputs
         inputs: {
             volume: '',
             aht: '',
             fteCost: '',
             errorRate: 0,
         },
-
-        // Step 3 - Complexity
         complexity: {
             numApplications: 1,
             dataType: 'structured',
@@ -91,9 +93,7 @@ export default function ROIWizard({ onComplete }) {
     const handleSubmit = async () => {
         setLoading(true);
         setError(null);
-
         try {
-            // Converter strings para números
             const payload = {
                 projectName: formData.projectName,
                 ownerUid: formData.ownerUid,
@@ -110,7 +110,6 @@ export default function ROIWizard({ onComplete }) {
                     numSteps: parseInt(formData.complexity.numSteps),
                 },
             };
-
             const result = await projectService.createProject(payload);
 
             if (result.success) {
@@ -158,26 +157,11 @@ export default function ROIWizard({ onComplete }) {
     const renderStepContent = (step) => {
         switch (step) {
             case 0:
-                return (
-                    <Step1ProjectInfo
-                        data={formData}
-                        onChange={updateFormData}
-                    />
-                );
+                return <Step1ProjectInfo data={formData} onChange={updateFormData} />;
             case 1:
-                return (
-                    <Step2AsIsInputs
-                        data={formData.inputs}
-                        onChange={(value) => updateFormData('inputs', value)}
-                    />
-                );
+                return <Step2AsIsInputs data={formData.inputs} onChange={(value) => updateFormData('inputs', value)} />;
             case 2:
-                return (
-                    <Step3Complexity
-                        data={formData.complexity}
-                        onChange={(value) => updateFormData('complexity', value)}
-                    />
-                );
+                return <Step3Complexity data={formData.complexity} onChange={(value) => updateFormData('complexity', value)} />;
             case 3:
                 return <Step4Review data={formData} />;
             default:
@@ -186,27 +170,39 @@ export default function ROIWizard({ onComplete }) {
     };
 
     return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
+        // Remove padding horizontal excessivo do Container no mobile
+        <Container maxWidth="lg" sx={{ py: isMobile ? 2 : 4, px: isMobile ? 1 : 3 }}>
+            
+            {/* Banner Superior */}
             <Paper
                 elevation={3}
                 sx={{
-                    p: 4,
+                    p: isMobile ? 3 : 4, // Padding menor no mobile
                     borderRadius: 2,
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     color: 'white',
                     mb: 3,
                 }}
             >
-                <Typography variant="h4" component="h1" gutterBottom fontWeight={700}>
+                <Typography variant={isMobile ? "h5" : "h4"} component="h1" gutterBottom fontWeight={700}>
                     RPA ROI Navigator
                 </Typography>
-                <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                <Typography variant="body1" sx={{ opacity: 0.9, fontSize: isMobile ? '0.9rem' : '1rem' }}>
                     Calcule o retorno sobre investimento de suas automações
                 </Typography>
             </Paper>
 
-            <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
-                <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+            <Paper elevation={2} sx={{ p: isMobile ? 2 : 4, borderRadius: 2 }}>
+                
+                {/* CORREÇÃO DO STEPPER: 
+                    alternativeLabel coloca o texto embaixo da bolinha.
+                    Isso economiza espaço lateral.
+                */}
+                <Stepper 
+                    activeStep={activeStep} 
+                    alternativeLabel={isMobile} // Ativa apenas no mobile (ou sempre, se preferir)
+                    sx={{ mb: 4 }}
+                >
                     {steps.map((label) => (
                         <Step key={label}>
                             <StepLabel>{label}</StepLabel>
@@ -220,35 +216,44 @@ export default function ROIWizard({ onComplete }) {
                     </Alert>
                 )}
 
-                <Box sx={{ minHeight: 400 }}>
+                <Box sx={{ minHeight: isMobile ? 300 : 400 }}>
                     {renderStepContent(activeStep)}
                 </Box>
 
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+                {/* Botões de Ação */}
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4, flexDirection: isMobile ? 'column-reverse' : 'row', gap: 2 }}>
                     <Button
                         disabled={activeStep === 0 || loading}
                         onClick={handleBack}
                         startIcon={<NavigateBefore />}
                         variant="outlined"
+                        fullWidth={isMobile} // Botão largura total no mobile
+                        size={isMobile ? "large" : "medium"}
                     >
                         Voltar
                     </Button>
 
-                    <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Box sx={{ display: 'flex', gap: 2, width: isMobile ? '100%' : 'auto' }}>
                         {activeStep === steps.length - 1 ? (
                             <>
-                                <Button
-                                    onClick={handleReset}
-                                    variant="outlined"
-                                    disabled={loading}
-                                >
-                                    Reiniciar
-                                </Button>
+                                {/* No último passo, mostramos Reiniciar e Calcular */}
+                                {!isMobile && (
+                                    <Button
+                                        onClick={handleReset}
+                                        variant="outlined"
+                                        disabled={loading}
+                                    >
+                                        Reiniciar
+                                    </Button>
+                                )}
+                                
                                 <Button
                                     onClick={handleSubmit}
                                     variant="contained"
-                                    startIcon={loading ? <CircularProgress size={20} /> : <Calculate />}
+                                    startIcon={loading ? <CircularProgress size={20} color="inherit"/> : <Calculate />}
                                     disabled={loading || !isStepValid()}
+                                    fullWidth={isMobile}
+                                    size={isMobile ? "large" : "medium"}
                                     sx={{
                                         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                                         '&:hover': {
@@ -265,6 +270,8 @@ export default function ROIWizard({ onComplete }) {
                                 variant="contained"
                                 endIcon={<NavigateNext />}
                                 disabled={!isStepValid()}
+                                fullWidth={isMobile}
+                                size={isMobile ? "large" : "medium"}
                             >
                                 Próximo
                             </Button>

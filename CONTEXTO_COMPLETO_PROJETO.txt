@@ -1,0 +1,6319 @@
+ESTRUTURA DE ARQUIVOS E CÓDIGO FONTE DO PROJETO:
+
+--- LISTA DE ARQUIVOS ---
+\API.md
+\ARCHITECTURE.md
+\backend\package.json
+\backend\README.md
+\backend\src\config\firebase.js
+\backend\src\controllers\projectController.js
+\backend\src\controllers\settingsController.js
+\backend\src\routes\index.js
+\backend\src\scripts\initFirestore.js
+\backend\src\server.js
+\backend\src\services\calculationService.js
+\backend\src\services\projectService.js
+\DEPLOY.md
+\EXAMPLES.md
+\frontend\index.html
+\frontend\package.json
+\frontend\README.md
+\frontend\src\App.jsx
+\frontend\src\components\ResultsDashboard.jsx
+\frontend\src\components\ROIWizard.jsx
+\frontend\src\components\steps\Step1ProjectInfo.jsx
+\frontend\src\components\steps\Step2AsIsInputs.jsx
+\frontend\src\components\steps\Step3Complexity.jsx
+\frontend\src\components\steps\Step4Review.jsx
+\frontend\src\config\firebase.js
+\frontend\src\main.jsx
+\frontend\src\services\api.js
+\frontend\vite.config.js
+\git-init.js
+\git-reset.js
+\INDEX.md
+\NEXT_STEPS.md
+\PROJECT_STRUCTURE.md
+\QUICKSTART.md
+\README.md
+\release.js
+\SUMMARY.md
+
+
+
+
+==================================================================
+ARQUIVO: \API.md
+==================================================================
+
+# 📚 API Documentation - RPA ROI Navigator
+
+Documentação completa da API REST.
+
+## Base URL
+
+```
+Development: http://localhost:5000/api
+Production:  https://rpa-roi-navigator-api.onrender.com/api
+```
+
+## 🔐 Autenticação
+
+Atualmente a API não requer autenticação. Em versões futuras, será implementado Firebase Auth.
+
+## 📡 Endpoints
+
+### Health Check
+
+#### GET /health
+
+Verifica o status da API.
+
+**Response 200 OK**
+```json
+{
+  "success": true,
+  "message": "RPA ROI Navigator API is running",
+  "timestamp": "2024-01-15T10:30:00.000Z"
+}
+```
+
+---
+
+### Projetos
+
+#### POST /projects
+
+Cria um novo projeto e calcula o ROI.
+
+**Request Body**
+```json
+{
+  "projectName": "Automação de Faturamento",
+  "ownerUid": "user123",
+  "inputs": {
+    "volume": 5000,
+    "aht": 10,
+    "fteCost": 8000,
+    "errorRate": 5
+  },
+  "complexity": {
+    "numApplications": 3,
+    "dataType": "structured",
+    "environment": "web",
+    "numSteps": 25
+  }
+}
+```
+
+**Campos**
+
+| Campo | Tipo | Obrigatório | Descrição |
+|-------|------|-------------|-----------|
+| projectName | string | Sim | Nome do projeto |
+| ownerUid | string | Não | ID do responsável (default: "anonymous") |
+| inputs.volume | number | Sim | Volume mensal de transações |
+| inputs.aht | number | Sim | Average Handle Time em minutos |
+| inputs.fteCost | number | Sim | Custo mensal do FTE em R$ |
+| inputs.errorRate | number | Não | Taxa de erro humano em % (default: 0) |
+| complexity.numApplications | number | Sim | Número de aplicações integradas |
+| complexity.dataType | string | Sim | Tipo de dados: "structured", "text", "ocr" |
+| complexity.environment | string | Sim | Ambiente: "web", "sap", "citrix" |
+| complexity.numSteps | number | Sim | Número de passos/regras |
+
+**Response 201 Created**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "abc123def456",
+    "project_name": "Automação de Faturamento",
+    "owner_uid": "user123",
+    "created_at": "2024-01-15T10:30:00.000Z",
+    "updated_at": "2024-01-15T10:30:00.000Z",
+    "inputs_as_is": {
+      "volume": 5000,
+      "aht": 10,
+      "fte_cost": 8000,
+      "error_rate": 5
+    },
+    "complexity_input": {
+      "numApplications": 3,
+      "dataType": "structured",
+      "environment": "web",
+      "numSteps": 25
+    },
+    "complexity_score": {
+      "total_points": 8,
+      "classification": "MEDIUM",
+      "hours": {
+        "devHours": 160,
+        "analystHours": 48,
+        "totalHours": 208
+      }
+    },
+    "results": {
+      "development_cost": 26400,
+      "as_is_cost_annual": 500000,
+      "to_be_cost_annual": 23960,
+      "roi_year_1": 1699.24,
+      "annual_savings": 476040,
+      "monthly_savings": 39670,
+      "payback_months": 0.7,
+      "cost_breakdown": {
+        "licenseCost": 15000,
+        "infraCost": 5000,
+        "maintenanceCost": 3960,
+        "exceptionCost": 0,
+        "totalToBeCost": 23960
+      }
+    }
+  }
+}
+```
+
+**Response 400 Bad Request**
+```json
+{
+  "success": false,
+  "error": "Missing required fields: projectName, inputs, complexity"
+}
+```
+
+---
+
+#### GET /projects/:id
+
+Busca um projeto específico por ID.
+
+**Parameters**
+
+| Parâmetro | Tipo | Descrição |
+|-----------|------|-----------|
+| id | string | ID do projeto |
+
+**Response 200 OK**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "abc123def456",
+    "project_name": "Automação de Faturamento",
+    ...
+  }
+}
+```
+
+**Response 404 Not Found**
+```json
+{
+  "success": false,
+  "error": "Project not found"
+}
+```
+
+---
+
+#### GET /projects
+
+Lista todos os projetos de um usuário.
+
+**Query Parameters**
+
+| Parâmetro | Tipo | Obrigatório | Descrição |
+|-----------|------|-------------|-----------|
+| ownerUid | string | Sim | ID do responsável |
+
+**Exemplo**
+```
+GET /api/projects?ownerUid=user123
+```
+
+**Response 200 OK**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "abc123",
+      "project_name": "Projeto 1",
+      "created_at": "2024-01-15T10:30:00.000Z",
+      ...
+    },
+    {
+      "id": "def456",
+      "project_name": "Projeto 2",
+      "created_at": "2024-01-14T09:20:00.000Z",
+      ...
+    }
+  ]
+}
+```
+
+---
+
+#### PUT /projects/:id
+
+Atualiza um projeto existente.
+
+**Parameters**
+
+| Parâmetro | Tipo | Descrição |
+|-----------|------|-----------|
+| id | string | ID do projeto |
+
+**Request Body**
+```json
+{
+  "project_name": "Novo Nome do Projeto"
+}
+```
+
+**Response 200 OK**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "abc123",
+    "project_name": "Novo Nome do Projeto",
+    "updated_at": "2024-01-15T11:00:00.000Z",
+    ...
+  }
+}
+```
+
+---
+
+#### DELETE /projects/:id
+
+Deleta um projeto.
+
+**Parameters**
+
+| Parâmetro | Tipo | Descrição |
+|-----------|------|-----------|
+| id | string | ID do projeto |
+
+**Response 200 OK**
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "message": "Project deleted successfully"
+  }
+}
+```
+
+---
+
+### Configurações
+
+#### GET /settings
+
+Busca as configurações globais da aplicação.
+
+**Response 200 OK**
+```json
+{
+  "success": true,
+  "data": {
+    "rates": {
+      "dev_hourly": 120.0,
+      "analyst_hourly": 150.0,
+      "infra_annual": 5000.0,
+      "license_annual": 15000.0
+    },
+    "baselines": {
+      "low": 104,
+      "medium": 208,
+      "high": 416
+    },
+    "updated_at": "2024-01-15T10:00:00.000Z"
+  }
+}
+```
+
+---
+
+#### PUT /settings
+
+Atualiza as configurações globais.
+
+**Request Body**
+```json
+{
+  "rates": {
+    "dev_hourly": 130.0,
+    "analyst_hourly": 160.0,
+    "infra_annual": 6000.0,
+    "license_annual": 18000.0
+  }
+}
+```
+
+**Response 200 OK**
+```json
+{
+  "success": true,
+  "data": {
+    "rates": {
+      "dev_hourly": 130.0,
+      "analyst_hourly": 160.0,
+      "infra_annual": 6000.0,
+      "license_annual": 18000.0
+    },
+    "baselines": {
+      "low": 104,
+      "medium": 208,
+      "high": 416
+    },
+    "updated_at": "2024-01-15T11:30:00.000Z"
+  }
+}
+```
+
+---
+
+## 📊 Lógica de Cálculo
+
+### Matriz de Complexidade
+
+**Pontuação por Critério:**
+
+1. **Número de Aplicações**
+   - 1-2: 1 ponto
+   - 3-4: 2 pontos
+   - 5+: 3 pontos
+
+2. **Tipo de Dados**
+   - structured: 1 ponto
+   - text: 2 pontos
+   - ocr: 5 pontos
+
+3. **Ambiente**
+   - web: 1 ponto
+   - sap: 2 pontos
+   - citrix: 4 pontos
+
+4. **Número de Passos**
+   - <20: 1 ponto
+   - 20-50: 3 pontos
+   - >50: 5 pontos
+
+**Classificação:**
+- 4-6 pontos: LOW (80h dev + 24h análise)
+- 7-11 pontos: MEDIUM (160h dev + 48h análise)
+- 12+ pontos: HIGH (320h dev + 96h análise)
+
+### Fórmulas Financeiras
+
+**Custo AS-IS (Anual)**
+```
+Custo_Minuto = fteCost / 9600
+Custo_AS_IS = (volume × aht × 12) × Custo_Minuto × (1 + errorRate/100)
+```
+
+**Custo de Desenvolvimento**
+```
+Custo_Dev = (devHours × dev_hourly) + (analystHours × analyst_hourly)
+```
+
+**Custo TO-BE (Anual)**
+```
+Custo_TO_BE = license_annual + infra_annual + (Custo_Dev × 0.15)
+```
+
+**ROI Ano 1**
+```
+Economia = Custo_AS_IS - Custo_TO_BE
+ROI = ((Economia - Custo_Dev) / Custo_Dev) × 100
+```
+
+**Payback (Meses)**
+```
+Economia_Mensal = Economia / 12
+Payback = Custo_Dev / Economia_Mensal
+```
+
+---
+
+## 🔍 Códigos de Status
+
+| Código | Descrição |
+|--------|-----------|
+| 200 | OK - Requisição bem-sucedida |
+| 201 | Created - Recurso criado com sucesso |
+| 400 | Bad Request - Dados inválidos |
+| 404 | Not Found - Recurso não encontrado |
+| 500 | Internal Server Error - Erro no servidor |
+
+---
+
+## 📝 Exemplos de Uso
+
+### cURL
+
+```bash
+# Criar projeto
+curl -X POST https://api.example.com/api/projects \
+  -H "Content-Type: application/json" \
+  -d '{
+    "projectName": "Teste",
+    "inputs": {
+      "volume": 1000,
+      "aht": 5,
+      "fteCost": 5000
+    },
+    "complexity": {
+      "numApplications": 2,
+      "dataType": "structured",
+      "environment": "web",
+      "numSteps": 15
+    }
+  }'
+
+# Listar projetos
+curl https://api.example.com/api/projects?ownerUid=user123
+```
+
+### JavaScript (Axios)
+
+```javascript
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'https://api.example.com/api',
+});
+
+// Criar projeto
+const response = await api.post('/projects', {
+  projectName: 'Teste',
+  inputs: {
+    volume: 1000,
+    aht: 5,
+    fteCost: 5000,
+  },
+  complexity: {
+    numApplications: 2,
+    dataType: 'structured',
+    environment: 'web',
+    numSteps: 15,
+  },
+});
+
+console.log(response.data);
+```
+
+---
+
+## 📄 Licença
+
+Proprietary - Uso Corporativo
+
+
+==================================================================
+ARQUIVO: \ARCHITECTURE.md
+==================================================================
+
+# 🏗️ Arquitetura Técnica - RPA ROI Navigator
+
+Documentação completa da arquitetura e decisões técnicas do projeto.
+
+## 📐 Visão Geral
+
+O RPA ROI Navigator é uma aplicação PWA (Progressive Web App) full-stack para cálculo e projeção de ROI de automações RPA, focada em grandes corporações do setor de energia.
+
+### Stack Tecnológica
+
+**Frontend**
+- React 18 + Vite
+- Material UI (Design System)
+- Recharts (Visualização de dados)
+- Axios (HTTP Client)
+- Firebase SDK (Client)
+- PWA (Service Worker + Manifest)
+
+**Backend**
+- Node.js + Express
+- Firebase Admin SDK
+- Helmet (Segurança)
+- Morgan (Logging)
+- CORS
+
+**Database**
+- Firebase Firestore (NoSQL)
+
+**Infraestrutura**
+- Render (Web Service + Static Site)
+
+## 🎯 Arquitetura de Alto Nível
+
+```
+┌─────────────────┐
+│   Navegador     │
+│   (PWA Client)  │
+└────────┬────────┘
+         │ HTTPS
+         ▼
+┌─────────────────┐
+│  Static Site    │
+│  (Render)       │
+│  - React App    │
+│  - Service      │
+│    Worker       │
+└────────┬────────┘
+         │ REST API
+         ▼
+┌─────────────────┐
+│  Web Service    │
+│  (Render)       │
+│  - Express API  │
+│  - Business     │
+│    Logic        │
+└────────┬────────┘
+         │ Firebase Admin SDK
+         ▼
+┌─────────────────┐
+│   Firestore     │
+│   (Firebase)    │
+│  - settings     │
+│  - projects     │
+└─────────────────┘
+```
+
+## 📊 Modelagem de Dados
+
+### Coleção: `settings`
+
+**Documento**: `global_config`
+
+```javascript
+{
+  rates: {
+    dev_hourly: Number,      // Taxa horária desenvolvedor
+    analyst_hourly: Number,  // Taxa horária analista
+    infra_annual: Number,    // Custo anual infraestrutura
+    license_annual: Number   // Custo anual licenças RPA
+  },
+  baselines: {
+    low: Number,    // Horas totais complexidade baixa
+    medium: Number, // Horas totais complexidade média
+    high: Number    // Horas totais complexidade alta
+  },
+  updated_at: Timestamp
+}
+```
+
+### Coleção: `projects`
+
+**Documentos**: Um por projeto/simulação
+
+```javascript
+{
+  project_name: String,
+  owner_uid: String,
+  created_at: Timestamp,
+  updated_at: Timestamp,
+  
+  inputs_as_is: {
+    volume: Number,      // Volume mensal de transações
+    aht: Number,         // Average Handle Time (minutos)
+    fte_cost: Number,    // Custo mensal FTE (R$)
+    error_rate: Number   // Taxa de erro humano (%)
+  },
+  
+  complexity_input: {
+    numApplications: Number,  // Número de aplicações
+    dataType: String,         // 'structured' | 'text' | 'ocr'
+    environment: String,      // 'web' | 'sap' | 'citrix'
+    numSteps: Number          // Número de passos/regras
+  },
+  
+  complexity_score: {
+    total_points: Number,        // Pontuação total (4-15+)
+    classification: String,      // 'LOW' | 'MEDIUM' | 'HIGH'
+    hours: {
+      devHours: Number,
+      analystHours: Number,
+      totalHours: Number
+    }
+  },
+  
+  results: {
+    development_cost: Number,
+    as_is_cost_annual: Number,
+    to_be_cost_annual: Number,
+    roi_year_1: Number,
+    annual_savings: Number,
+    monthly_savings: Number,
+    payback_months: Number,
+    cost_breakdown: {
+      licenseCost: Number,
+      infraCost: Number,
+      maintenanceCost: Number,
+      exceptionCost: Number,
+      totalToBeCost: Number
+    }
+  }
+}
+```
+
+## 🧮 Regras de Negócio
+
+### 1. Matriz de Complexidade
+
+A complexidade é calculada através de um sistema de pontuação oculto ao usuário:
+
+**Critérios e Pontuação:**
+
+| Critério | Opção | Pontos |
+|----------|-------|--------|
+| **Nº Aplicações** | 1-2 | 1 |
+| | 3-4 | 2 |
+| | 5+ | 3 |
+| **Tipo de Dados** | Estruturados | 1 |
+| | Texto/E-mail | 2 |
+| | Imagem/OCR | 5 |
+| **Ambiente** | Web/Local | 1 |
+| | SAP/Mainframe | 2 |
+| | Citrix/Remoto | 4 |
+| **Nº Passos** | <20 | 1 |
+| | 20-50 | 3 |
+| | >50 | 5 |
+
+**Classificação:**
+
+| Pontuação | Classificação | Dev | Análise | Total |
+|-----------|---------------|-----|---------|-------|
+| 4-6 | BAIXA | 80h | 24h | 104h |
+| 7-11 | MÉDIA | 160h | 48h | 208h |
+| 12+ | ALTA | 320h | 96h | 416h |
+
+### 2. Fórmulas Financeiras
+
+#### Custo AS-IS (Anual)
+
+```
+Custo_Minuto_FTE = fteCost / 9600
+  onde 9600 = 160h/mês × 60min/h
+
+Custo_AS_IS_Anual = (volume × aht × 12) × Custo_Minuto_FTE × (1 + errorRate/100)
+```
+
+**Exemplo:**
+- Volume: 5.000 transações/mês
+- AHT: 10 minutos
+- FTE Cost: R$ 8.000/mês
+- Error Rate: 5%
+
+```
+Custo_Minuto = 8000 / 9600 = R$ 0,833
+Custo_AS_IS = (5000 × 10 × 12) × 0,833 × 1,05 = R$ 524.900
+```
+
+#### Custo de Desenvolvimento
+
+```
+Custo_Dev = (devHours × dev_hourly) + (analystHours × analyst_hourly)
+```
+
+**Exemplo (Complexidade MÉDIA):**
+```
+Custo_Dev = (160 × 120) + (48 × 150) = R$ 26.400
+```
+
+#### Custo TO-BE (Anual)
+
+```
+Custo_Licenças = license_annual (padrão: R$ 15.000)
+Custo_Infra = infra_annual (padrão: R$ 5.000)
+Custo_Manutenção = Custo_Dev × 0,15
+Custo_Exceções = 0 (simplificado)
+
+Custo_TO_BE = Custo_Licenças + Custo_Infra + Custo_Manutenção + Custo_Exceções
+```
+
+**Exemplo:**
+```
+Custo_TO_BE = 15000 + 5000 + (26400 × 0,15) + 0 = R$ 23.960
+```
+
+#### ROI Ano 1
+
+```
+Economia_Anual = Custo_AS_IS - Custo_TO_BE
+ROI = ((Economia_Anual - Custo_Dev) / Custo_Dev) × 100
+```
+
+**Exemplo:**
+```
+Economia = 524900 - 23960 = R$ 500.940
+ROI = ((500940 - 26400) / 26400) × 100 = 1.797%
+```
+
+#### Payback Period
+
+```
+Economia_Mensal = Economia_Anual / 12
+Payback_Meses = Custo_Dev / Economia_Mensal
+```
+
+**Exemplo:**
+```
+Economia_Mensal = 500940 / 12 = R$ 41.745
+Payback = 26400 / 41745 = 0,63 meses (~19 dias)
+```
+
+## 🔄 Fluxo de Dados
+
+### Criação de Projeto
+
+```
+1. Frontend: Usuário preenche wizard (4 steps)
+   ↓
+2. Frontend: Valida dados localmente
+   ↓
+3. Frontend: POST /api/projects
+   ↓
+4. Backend: Valida payload
+   ↓
+5. Backend: Busca taxas globais (Firestore)
+   ↓
+6. Backend: Calcula complexidade (ComplexityService)
+   ↓
+7. Backend: Calcula indicadores financeiros (FinancialService)
+   ↓
+8. Backend: Salva projeto (Firestore)
+   ↓
+9. Backend: Retorna resultado completo
+   ↓
+10. Frontend: Exibe dashboard de resultados
+```
+
+### Atualização de Configurações
+
+```
+1. Admin: PUT /api/settings
+   ↓
+2. Backend: Valida dados
+   ↓
+3. Backend: Atualiza Firestore (settings/global_config)
+   ↓
+4. Próximos cálculos usarão novas taxas
+```
+
+## 🔐 Segurança
+
+### Backend
+
+- **Helmet**: Headers de segurança HTTP
+- **CORS**: Configurável por ambiente
+- **Input Validation**: Validação de todos os payloads
+- **Firebase Admin SDK**: Autenticação segura com Firestore
+
+### Frontend
+
+- **HTTPS**: Obrigatório em produção
+- **Input Sanitization**: Validação de formulários
+- **Environment Variables**: Credenciais via variáveis de ambiente
+- **CSP**: Content Security Policy via Helmet
+
+### Firestore
+
+**Regras de Segurança (Produção):**
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Configurações: leitura pública, escrita apenas via Admin SDK
+    match /settings/{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // Projetos: autenticação futura
+    match /projects/{projectId} {
+      allow read, write: if request.auth != null; // TODO: Implementar
+    }
+  }
+}
+```
+
+## 📈 Performance
+
+### Frontend
+
+- **Code Splitting**: Vite faz automaticamente
+- **Lazy Loading**: Componentes carregados sob demanda
+- **Service Worker**: Cache de assets estáticos
+- **Minificação**: Build otimizado para produção
+
+### Backend
+
+- **Firestore Caching**: Cache de configurações globais
+- **Async/Await**: Operações não-bloqueantes
+- **Connection Pooling**: Firebase Admin SDK gerencia
+
+### Database
+
+- **Índices**: Criados automaticamente pelo Firestore
+- **Queries Otimizadas**: Filtros e ordenação no servidor
+- **Paginação**: Preparado para implementação futura
+
+## 🧪 Testes (Roadmap)
+
+### Backend
+
+- Unit Tests: Jest
+- Integration Tests: Supertest
+- Coverage: >80%
+
+### Frontend
+
+- Unit Tests: Vitest
+- Component Tests: React Testing Library
+- E2E Tests: Playwright
+
+## 📦 Deploy
+
+### Estratégia
+
+- **Backend**: Render Web Service (Always On em produção)
+- **Frontend**: Render Static Site (CDN global)
+- **Database**: Firebase (Multi-region)
+
+### CI/CD (Roadmap)
+
+```
+Git Push → GitHub Actions → Tests → Build → Deploy
+```
+
+## 🔮 Roadmap Futuro
+
+### Fase 2: Autenticação
+- Firebase Authentication
+- Login com Google/Microsoft
+- Controle de acesso por usuário
+
+### Fase 3: Colaboração
+- Compartilhamento de projetos
+- Comentários e anotações
+- Histórico de versões
+
+### Fase 4: Analytics
+- Dashboard executivo
+- Comparação de projetos
+- Exportação para Excel/PDF
+
+### Fase 5: IA/ML
+- Sugestões de otimização
+- Previsão de ROI baseada em histórico
+- Detecção de anomalias
+
+## 📚 Referências
+
+- [React Documentation](https://react.dev)
+- [Material UI](https://mui.com)
+- [Firebase Documentation](https://firebase.google.com/docs)
+- [Express.js](https://expressjs.com)
+- [Render Documentation](https://render.com/docs)
+
+## 📄 Licença
+
+Proprietary - Uso Corporativo
+
+---
+
+**Versão**: 1.0.0  
+**Última Atualização**: 2024-01-15  
+**Autor**: Arquiteto de Software Sênior
+
+
+==================================================================
+ARQUIVO: \backend\package.json
+==================================================================
+
+{
+  "name": "rpa-roi-navigator-backend",
+  "version": "1.0.0",
+  "description": "Backend API for RPA ROI Calculator",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "keywords": ["rpa", "roi", "calculator", "automation"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "firebase-admin": "^12.0.0",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
+
+
+==================================================================
+ARQUIVO: \backend\README.md
+==================================================================
+
+# Backend - RPA ROI Navigator API
+
+API REST para cálculo de ROI de automações RPA.
+
+## 🚀 Tecnologias
+
+- Node.js + Express
+- Firebase Firestore
+- Helmet (Segurança)
+- Morgan (Logging)
+- CORS
+
+## 📋 Pré-requisitos
+
+- Node.js 18+ instalado
+- Conta Firebase com Firestore habilitado
+- Credenciais do Firebase Admin SDK
+
+## 🔧 Instalação
+
+1. Instale as dependências:
+```bash
+npm install
+```
+
+2. Configure as variáveis de ambiente:
+```bash
+cp .env.example .env
+```
+
+3. Edite o arquivo `.env` com suas credenciais do Firebase:
+```env
+PORT=5000
+FIREBASE_PROJECT_ID=seu-projeto-id
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk@seu-projeto.iam.gserviceaccount.com
+```
+
+## 🏃 Executando
+
+### Desenvolvimento
+```bash
+npm run dev
+```
+
+### Produção
+```bash
+npm start
+```
+
+O servidor estará disponível em `http://localhost:5000`
+
+## 📚 Endpoints
+
+### Health Check
+```
+GET /api/health
+```
+
+### Projetos
+```
+POST   /api/projects          - Criar novo projeto
+GET    /api/projects/:id      - Buscar projeto por ID
+GET    /api/projects          - Listar projetos (query: ownerUid)
+PUT    /api/projects/:id      - Atualizar projeto
+DELETE /api/projects/:id      - Deletar projeto
+```
+
+### Configurações
+```
+GET /api/settings             - Buscar configurações globais
+PUT /api/settings             - Atualizar configurações globais
+```
+
+## 📊 Exemplo de Payload
+
+### Criar Projeto
+```json
+{
+  "projectName": "Automação de Faturamento",
+  "ownerUid": "user123",
+  "inputs": {
+    "volume": 5000,
+    "aht": 10,
+    "fteCost": 8000,
+    "errorRate": 5
+  },
+  "complexity": {
+    "numApplications": 3,
+    "dataType": "structured",
+    "environment": "web",
+    "numSteps": 25
+  }
+}
+```
+
+## 🔐 Segurança
+
+- Helmet para headers de segurança
+- CORS configurável
+- Validação de inputs
+- Firebase Admin SDK para autenticação segura
+
+## 📦 Deploy (Render)
+
+1. Conecte o repositório no Render
+2. Configure como Web Service
+3. Build Command: `npm install`
+4. Start Command: `npm start`
+5. Adicione as variáveis de ambiente no painel do Render
+
+## 📄 Licença
+
+Proprietary - Uso Corporativo
+
+
+==================================================================
+ARQUIVO: \backend\src\config\firebase.js
+==================================================================
+
+import admin from 'firebase-admin';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+/**
+ * Inicializa o Firebase Admin SDK
+ */
+const initializeFirebase = () => {
+  try {
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+    
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        privateKey: privateKey,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      }),
+    });
+
+    console.log('✅ Firebase Admin initialized successfully');
+  } catch (error) {
+    console.error('❌ Error initializing Firebase Admin:', error);
+    process.exit(1);
+  }
+};
+
+/**
+ * Retorna a instância do Firestore
+ */
+const getFirestore = () => {
+  return admin.firestore();
+};
+
+export { initializeFirebase, getFirestore };
+
+
+==================================================================
+ARQUIVO: \backend\src\controllers\projectController.js
+==================================================================
+
+import ProjectService from '../services/projectService.js';
+
+const projectService = new ProjectService();
+
+/**
+ * Controller para operações de projetos
+ */
+class ProjectController {
+    /**
+     * POST /api/projects - Cria um novo projeto
+     */
+    async createProject(req, res) {
+        try {
+            const { projectName, ownerUid, inputs, complexity } = req.body;
+
+            // Validação básica
+            if (!projectName || !inputs || !complexity) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Missing required fields: projectName, inputs, complexity',
+                });
+            }
+
+            // Validar inputs
+            if (!inputs.volume || !inputs.aht || !inputs.fteCost) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Missing required inputs: volume, aht, fteCost',
+                });
+            }
+
+            // Validar complexity
+            if (
+                complexity.numApplications === undefined ||
+                !complexity.dataType ||
+                !complexity.environment ||
+                complexity.numSteps === undefined
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Missing required complexity fields',
+                });
+            }
+
+            const project = await projectService.createProject({
+                projectName,
+                ownerUid,
+                inputs,
+                complexity,
+            });
+
+            res.status(201).json({
+                success: true,
+                data: project,
+            });
+        } catch (error) {
+            console.error('Error in createProject:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message || 'Internal server error',
+            });
+        }
+    }
+
+    /**
+     * GET /api/projects/:id - Busca um projeto por ID
+     */
+    async getProject(req, res) {
+        try {
+            const { id } = req.params;
+            const project = await projectService.getProject(id);
+
+            res.status(200).json({
+                success: true,
+                data: project,
+            });
+        } catch (error) {
+            console.error('Error in getProject:', error);
+
+            if (error.message === 'Project not found') {
+                return res.status(404).json({
+                    success: false,
+                    error: 'Project not found',
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                error: error.message || 'Internal server error',
+            });
+        }
+    }
+
+    /**
+     * GET /api/projects - Lista projetos de um usuário
+     */
+    async listProjects(req, res) {
+        try {
+            const { ownerUid } = req.query;
+
+            if (!ownerUid) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Missing ownerUid query parameter',
+                });
+            }
+
+            const projects = await projectService.listProjects(ownerUid);
+
+            res.status(200).json({
+                success: true,
+                data: projects,
+            });
+        } catch (error) {
+            console.error('Error in listProjects:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message || 'Internal server error',
+            });
+        }
+    }
+
+    /**
+     * PUT /api/projects/:id - Atualiza um projeto
+     */
+    async updateProject(req, res) {
+        try {
+            const { id } = req.params;
+            const updates = req.body;
+
+            const project = await projectService.updateProject(id, updates);
+
+            res.status(200).json({
+                success: true,
+                data: project,
+            });
+        } catch (error) {
+            console.error('Error in updateProject:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message || 'Internal server error',
+            });
+        }
+    }
+
+    /**
+     * DELETE /api/projects/:id - Deleta um projeto
+     */
+    async deleteProject(req, res) {
+        try {
+            const { id } = req.params;
+            const result = await projectService.deleteProject(id);
+
+            res.status(200).json({
+                success: true,
+                data: result,
+            });
+        } catch (error) {
+            console.error('Error in deleteProject:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message || 'Internal server error',
+            });
+        }
+    }
+}
+
+export default new ProjectController();
+
+
+==================================================================
+ARQUIVO: \backend\src\controllers\settingsController.js
+==================================================================
+
+import { getFirestore } from '../config/firebase.js';
+
+/**
+ * Controller para configurações globais
+ */
+class SettingsController {
+    constructor() {
+        this.db = getFirestore();
+    }
+
+    /**
+     * GET /api/settings - Busca configurações globais
+     */
+    async getSettings(req, res) {
+        try {
+            const doc = await this.db.collection('settings').doc('global_config').get();
+
+            if (!doc.exists) {
+                // Retorna configurações padrão
+                const defaultSettings = {
+                    rates: {
+                        dev_hourly: 120.0,
+                        analyst_hourly: 150.0,
+                        infra_annual: 5000.0,
+                        license_annual: 15000.0,
+                    },
+                    baselines: {
+                        low: 104,
+                        medium: 208,
+                        high: 416,
+                    },
+                };
+
+                return res.status(200).json({
+                    success: true,
+                    data: defaultSettings,
+                });
+            }
+
+            res.status(200).json({
+                success: true,
+                data: doc.data(),
+            });
+        } catch (error) {
+            console.error('Error fetching settings:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message || 'Internal server error',
+            });
+        }
+    }
+
+    /**
+     * PUT /api/settings - Atualiza configurações globais
+     */
+    async updateSettings(req, res) {
+        try {
+            const updates = req.body;
+
+            await this.db.collection('settings').doc('global_config').set(updates, { merge: true });
+
+            const updatedDoc = await this.db.collection('settings').doc('global_config').get();
+
+            res.status(200).json({
+                success: true,
+                data: updatedDoc.data(),
+            });
+        } catch (error) {
+            console.error('Error updating settings:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message || 'Internal server error',
+            });
+        }
+    }
+}
+
+export default new SettingsController();
+
+
+==================================================================
+ARQUIVO: \backend\src\routes\index.js
+==================================================================
+
+import express from 'express';
+import projectController from '../controllers/projectController.js';
+import settingsController from '../controllers/settingsController.js';
+
+const router = express.Router();
+
+// Health check
+router.get('/health', (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: 'RPA ROI Navigator API is running',
+        timestamp: new Date().toISOString(),
+    });
+});
+
+// Projects routes
+router.post('/projects', projectController.createProject.bind(projectController));
+router.get('/projects/:id', projectController.getProject.bind(projectController));
+router.get('/projects', projectController.listProjects.bind(projectController));
+router.put('/projects/:id', projectController.updateProject.bind(projectController));
+router.delete('/projects/:id', projectController.deleteProject.bind(projectController));
+
+// Settings routes
+router.get('/settings', settingsController.getSettings.bind(settingsController));
+router.put('/settings', settingsController.updateSettings.bind(settingsController));
+
+export default router;
+
+
+==================================================================
+ARQUIVO: \backend\src\scripts\initFirestore.js
+==================================================================
+
+import admin from 'firebase-admin';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+/**
+ * Script para inicializar o Firestore com configurações padrão
+ */
+
+const initializeFirestore = async () => {
+    try {
+        // Inicializar Firebase Admin
+        const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+        admin.initializeApp({
+            credential: admin.credential.cert({
+                projectId: process.env.FIREBASE_PROJECT_ID,
+                privateKey: privateKey,
+                clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+            }),
+        });
+
+        const db = admin.firestore();
+
+        console.log('🔥 Inicializando Firestore...\n');
+
+        // Configurações globais padrão
+        const globalConfig = {
+            rates: {
+                dev_hourly: 120.0,
+                analyst_hourly: 150.0,
+                infra_annual: 5000.0,
+                license_annual: 15000.0,
+            },
+            baselines: {
+                low: 104,
+                medium: 208,
+                high: 416,
+            },
+            updated_at: new Date().toISOString(),
+        };
+
+        // Criar/atualizar documento de configurações
+        await db.collection('settings').doc('global_config').set(globalConfig);
+
+        console.log('✅ Configurações globais criadas:');
+        console.log(JSON.stringify(globalConfig, null, 2));
+        console.log('\n');
+
+        // Criar projeto de exemplo
+        const exampleProject = {
+            project_name: 'Exemplo - Automação de Faturamento',
+            owner_uid: 'demo_user',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            inputs_as_is: {
+                volume: 5000,
+                aht: 10,
+                fte_cost: 8000,
+                error_rate: 5,
+            },
+            complexity_input: {
+                numApplications: 3,
+                dataType: 'structured',
+                environment: 'web',
+                numSteps: 25,
+            },
+            complexity_score: {
+                total_points: 8,
+                classification: 'MEDIUM',
+                hours: {
+                    devHours: 160,
+                    analystHours: 48,
+                    totalHours: 208,
+                },
+            },
+            results: {
+                development_cost: 26400,
+                as_is_cost_annual: 500000,
+                to_be_cost_annual: 24960,
+                roi_year_1: 1699.24,
+                annual_savings: 475040,
+                monthly_savings: 39586.67,
+                payback_months: 0.7,
+                cost_breakdown: {
+                    licenseCost: 15000,
+                    infraCost: 5000,
+                    maintenanceCost: 3960,
+                    exceptionCost: 0,
+                    totalToBeCost: 23960,
+                },
+            },
+        };
+
+        const projectRef = await db.collection('projects').add(exampleProject);
+
+        console.log('✅ Projeto de exemplo criado:');
+        console.log(`   ID: ${projectRef.id}`);
+        console.log(`   Nome: ${exampleProject.project_name}`);
+        console.log(`   ROI Ano 1: ${exampleProject.results.roi_year_1}%`);
+        console.log(`   Payback: ${exampleProject.results.payback_months} meses`);
+        console.log('\n');
+
+        console.log('🎉 Firestore inicializado com sucesso!\n');
+        console.log('📊 Coleções criadas:');
+        console.log('   - settings (1 documento)');
+        console.log('   - projects (1 documento de exemplo)');
+        console.log('\n');
+
+        process.exit(0);
+    } catch (error) {
+        console.error('❌ Erro ao inicializar Firestore:', error);
+        process.exit(1);
+    }
+};
+
+initializeFirestore();
+
+
+==================================================================
+ARQUIVO: \backend\src\server.js
+==================================================================
+
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import dotenv from 'dotenv';
+import { initializeFirebase } from './config/firebase.js';
+import routes from './routes/index.js';
+
+// Carregar variáveis de ambiente
+dotenv.config();
+
+// Inicializar Firebase
+initializeFirebase();
+
+// Criar aplicação Express
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Middlewares
+app.use(helmet()); // Segurança
+app.use(morgan('dev')); // Logging
+app.use(express.json()); // Parse JSON
+app.use(express.urlencoded({ extended: true })); // Parse URL-encoded
+
+// CORS
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',')
+    : ['http://localhost:5173', 'http://localhost:3000'];
+
+app.use(
+    cors({
+        origin: (origin, callback) => {
+            // Permitir requisições sem origin (mobile apps, Postman, etc)
+            if (!origin) return callback(null, true);
+
+            if (allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
+        credentials: true,
+    })
+);
+
+// Rotas
+app.use('/api', routes);
+
+// Rota raiz
+app.get('/', (req, res) => {
+    res.json({
+        message: 'RPA ROI Navigator API',
+        version: '1.0.0',
+        endpoints: {
+            health: '/api/health',
+            projects: '/api/projects',
+            settings: '/api/settings',
+        },
+    });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+    console.error('Error:', err);
+    res.status(err.status || 500).json({
+        success: false,
+        error: err.message || 'Internal server error',
+    });
+});
+
+// 404 handler
+app.use((req, res) => {
+    res.status(404).json({
+        success: false,
+        error: 'Route not found',
+    });
+});
+
+// Iniciar servidor
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🌐 CORS enabled for: ${allowedOrigins.join(', ')}`);
+});
+
+export default app;
+
+
+==================================================================
+ARQUIVO: \backend\src\services\calculationService.js
+==================================================================
+
+import { getFirestore } from '../config/firebase.js';
+
+/**
+ * Serviço de Cálculo de Complexidade
+ * Implementa a Matriz de Complexidade baseada em scoring
+ */
+class ComplexityService {
+    /**
+     * Calcula a pontuação de complexidade baseada nos critérios
+     * @param {Object} complexity - Objeto com os critérios de complexidade
+     * @returns {Object} - { totalPoints, classification }
+     */
+    calculateComplexityScore(complexity) {
+        let totalPoints = 0;
+
+        // 1. Número de Aplicações
+        const numApps = complexity.numApplications || 0;
+        if (numApps <= 2) totalPoints += 1;
+        else if (numApps <= 4) totalPoints += 2;
+        else totalPoints += 3;
+
+        // 2. Tipo de Dados
+        const dataType = complexity.dataType || 'structured';
+        switch (dataType) {
+            case 'structured': // Excel, CSV
+                totalPoints += 1;
+                break;
+            case 'text': // E-mail, Texto
+                totalPoints += 2;
+                break;
+            case 'ocr': // Imagem, OCR
+                totalPoints += 5;
+                break;
+            default:
+                totalPoints += 1;
+        }
+
+        // 3. Ambiente
+        const environment = complexity.environment || 'web';
+        switch (environment) {
+            case 'web': // Web/Local
+                totalPoints += 1;
+                break;
+            case 'sap': // SAP/Mainframe
+                totalPoints += 2;
+                break;
+            case 'citrix': // Citrix/Remoto
+                totalPoints += 4;
+                break;
+            default:
+                totalPoints += 1;
+        }
+
+        // 4. Regras/Passos
+        const numSteps = complexity.numSteps || 0;
+        if (numSteps < 20) totalPoints += 1;
+        else if (numSteps <= 50) totalPoints += 3;
+        else totalPoints += 5;
+
+        // Classificação
+        let classification = 'LOW';
+        if (totalPoints >= 12) classification = 'HIGH';
+        else if (totalPoints >= 7) classification = 'MEDIUM';
+
+        return {
+            totalPoints,
+            classification,
+        };
+    }
+
+    /**
+     * Retorna as horas base de desenvolvimento e análise
+     * @param {String} classification - LOW, MEDIUM, HIGH
+     * @returns {Object} - { devHours, analystHours, totalHours }
+     */
+    getBaselineHours(classification) {
+        const baselines = {
+            LOW: { devHours: 80, analystHours: 24 },
+            MEDIUM: { devHours: 160, analystHours: 48 },
+            HIGH: { devHours: 320, analystHours: 96 },
+        };
+
+        const baseline = baselines[classification] || baselines.MEDIUM;
+        return {
+            ...baseline,
+            totalHours: baseline.devHours + baseline.analystHours,
+        };
+    }
+}
+
+/**
+ * Serviço de Cálculo Financeiro
+ * Implementa as fórmulas de ROI, Payback e custos
+ */
+class FinancialService {
+    constructor() {
+        this.db = getFirestore();
+    }
+
+    /**
+     * Busca as taxas globais do Firestore
+     * @returns {Object} - Taxas e configurações globais
+     */
+    async getGlobalRates() {
+        try {
+            const settingsDoc = await this.db.collection('settings').doc('global_config').get();
+
+            if (!settingsDoc.exists) {
+                // Retorna valores padrão se não existir
+                return {
+                    rates: {
+                        dev_hourly: 120.0,
+                        analyst_hourly: 150.0,
+                        infra_annual: 5000.0,
+                        license_annual: 15000.0,
+                    },
+                    baselines: {
+                        low: 104,
+                        medium: 208,
+                        high: 416,
+                    },
+                };
+            }
+
+            return settingsDoc.data();
+        } catch (error) {
+            console.error('Error fetching global rates:', error);
+            throw new Error('Failed to fetch global configuration');
+        }
+    }
+
+    /**
+     * Calcula o custo AS-IS (situação atual)
+     * @param {Object} inputs - { volume, aht, fteCost, errorRate }
+     * @returns {Number} - Custo anual AS-IS
+     */
+    calculateAsIsCost(inputs) {
+        const { volume, aht, fteCost, errorRate = 0 } = inputs;
+
+        // Custo por minuto do FTE (assumindo 160h/mês = 9600min/mês)
+        const costPerMinute = fteCost / 9600;
+
+        // Custo AS-IS Anual = (Volume * AHT * 12) * Custo_Minuto * (1 + Taxa_Erro)
+        const asIsCost = (volume * aht * 12) * costPerMinute * (1 + errorRate / 100);
+
+        return Math.round(asIsCost * 100) / 100;
+    }
+
+    /**
+     * Calcula o custo de desenvolvimento
+     * @param {Object} hours - { devHours, analystHours }
+     * @param {Object} rates - { dev_hourly, analyst_hourly }
+     * @returns {Number} - Custo total de desenvolvimento
+     */
+    calculateDevelopmentCost(hours, rates) {
+        const devCost = hours.devHours * rates.dev_hourly;
+        const analystCost = hours.analystHours * rates.analyst_hourly;
+
+        return Math.round((devCost + analystCost) * 100) / 100;
+    }
+
+    /**
+     * Calcula o custo TO-BE (com automação)
+     * @param {Object} params - { developmentCost, rates, exceptionRate }
+     * @returns {Object} - Breakdown do custo TO-BE
+     */
+    calculateToBeCost(params) {
+        const { developmentCost, rates, exceptionRate = 5 } = params;
+
+        // Custo de licenças anual
+        const licenseCost = rates.license_annual;
+
+        // Custo de infraestrutura anual
+        const infraCost = rates.infra_annual;
+
+        // Manutenção (15% do custo de desenvolvimento)
+        const maintenanceCost = developmentCost * 0.15;
+
+        // Custo de exceções manuais (% do volume que ainda precisa intervenção)
+        // Simplificado: assumimos que é uma % pequena do custo AS-IS
+        const exceptionCost = 0; // Pode ser parametrizado futuramente
+
+        const totalToBeCost = licenseCost + infraCost + maintenanceCost + exceptionCost;
+
+        return {
+            licenseCost: Math.round(licenseCost * 100) / 100,
+            infraCost: Math.round(infraCost * 100) / 100,
+            maintenanceCost: Math.round(maintenanceCost * 100) / 100,
+            exceptionCost: Math.round(exceptionCost * 100) / 100,
+            totalToBeCost: Math.round(totalToBeCost * 100) / 100,
+        };
+    }
+
+    /**
+     * Calcula o ROI do primeiro ano
+     * @param {Number} asIsCost - Custo AS-IS anual
+     * @param {Number} toBeCost - Custo TO-BE anual
+     * @param {Number} developmentCost - Custo de desenvolvimento
+     * @returns {Number} - ROI em percentual
+     */
+    calculateROI(asIsCost, toBeCost, developmentCost) {
+        // ROI = ((Economia - Investimento) / Investimento) * 100
+        const savings = asIsCost - toBeCost;
+        const roi = ((savings - developmentCost) / developmentCost) * 100;
+
+        return Math.round(roi * 100) / 100;
+    }
+
+    /**
+     * Calcula o período de payback em meses
+     * @param {Number} developmentCost - Investimento inicial
+     * @param {Number} monthlySavings - Economia mensal
+     * @returns {Number} - Meses até payback
+     */
+    calculatePayback(developmentCost, monthlySavings) {
+        if (monthlySavings <= 0) return null; // Nunca haverá payback
+
+        const months = developmentCost / monthlySavings;
+        return Math.round(months * 10) / 10;
+    }
+
+    /**
+     * Calcula todos os indicadores financeiros
+     * @param {Object} inputs - Inputs AS-IS
+     * @param {Object} complexity - Critérios de complexidade
+     * @returns {Object} - Todos os resultados financeiros
+     */
+    async calculateFullROI(inputs, complexity) {
+        // 1. Buscar taxas globais
+        const config = await this.getGlobalRates();
+
+        // 2. Calcular complexidade
+        const complexityService = new ComplexityService();
+        const complexityScore = complexityService.calculateComplexityScore(complexity);
+        const hours = complexityService.getBaselineHours(complexityScore.classification);
+
+        // 3. Calcular custo de desenvolvimento
+        const developmentCost = this.calculateDevelopmentCost(hours, config.rates);
+
+        // 4. Calcular custo AS-IS
+        const asIsCost = this.calculateAsIsCost(inputs);
+
+        // 5. Calcular custo TO-BE
+        const toBeCostBreakdown = this.calculateToBeCost({
+            developmentCost,
+            rates: config.rates,
+        });
+
+        // 6. Calcular ROI
+        const roi = this.calculateROI(asIsCost, toBeCostBreakdown.totalToBeCost, developmentCost);
+
+        // 7. Calcular Payback
+        const annualSavings = asIsCost - toBeCostBreakdown.totalToBeCost;
+        const monthlySavings = annualSavings / 12;
+        const paybackMonths = this.calculatePayback(developmentCost, monthlySavings);
+
+        return {
+            complexity: {
+                score: complexityScore.totalPoints,
+                classification: complexityScore.classification,
+                hours: hours,
+            },
+            costs: {
+                asIs: {
+                    annual: asIsCost,
+                    monthly: Math.round((asIsCost / 12) * 100) / 100,
+                },
+                development: developmentCost,
+                toBe: {
+                    ...toBeCostBreakdown,
+                    annual: toBeCostBreakdown.totalToBeCost,
+                    monthly: Math.round((toBeCostBreakdown.totalToBeCost / 12) * 100) / 100,
+                },
+            },
+            roi: {
+                year1: roi,
+                annualSavings: Math.round(annualSavings * 100) / 100,
+                monthlySavings: Math.round(monthlySavings * 100) / 100,
+                paybackMonths: paybackMonths,
+            },
+        };
+    }
+}
+
+export { ComplexityService, FinancialService };
+
+
+==================================================================
+ARQUIVO: \backend\src\services\projectService.js
+==================================================================
+
+import { getFirestore } from '../config/firebase.js';
+import { FinancialService } from './calculationService.js';
+
+/**
+ * Serviço para gerenciar projetos no Firestore
+ */
+class ProjectService {
+    constructor() {
+        this.db = getFirestore();
+        this.financialService = new FinancialService();
+    }
+
+    /**
+     * Cria um novo projeto/simulação
+     * @param {Object} projectData - Dados do projeto
+     * @returns {Object} - Projeto criado com ID
+     */
+    async createProject(projectData) {
+        try {
+            const { projectName, ownerUid, inputs, complexity } = projectData;
+
+            // Calcular todos os indicadores
+            const results = await this.financialService.calculateFullROI(inputs, complexity);
+
+            // Estrutura do documento
+            const project = {
+                project_name: projectName,
+                owner_uid: ownerUid || 'anonymous',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                inputs_as_is: {
+                    volume: inputs.volume,
+                    aht: inputs.aht,
+                    fte_cost: inputs.fteCost,
+                    error_rate: inputs.errorRate || 0,
+                },
+                complexity_input: complexity,
+                complexity_score: {
+                    total_points: results.complexity.score,
+                    classification: results.complexity.classification,
+                    hours: results.complexity.hours,
+                },
+                results: {
+                    development_cost: results.costs.development,
+                    as_is_cost_annual: results.costs.asIs.annual,
+                    to_be_cost_annual: results.costs.toBe.annual,
+                    roi_year_1: results.roi.year1,
+                    annual_savings: results.roi.annualSavings,
+                    monthly_savings: results.roi.monthlySavings,
+                    payback_months: results.roi.paybackMonths,
+                    cost_breakdown: results.costs.toBe,
+                },
+            };
+
+            // Salvar no Firestore
+            const docRef = await this.db.collection('projects').add(project);
+
+            return {
+                id: docRef.id,
+                ...project,
+            };
+        } catch (error) {
+            console.error('Error creating project:', error);
+            throw new Error('Failed to create project');
+        }
+    }
+
+    /**
+     * Busca um projeto por ID
+     * @param {String} projectId - ID do projeto
+     * @returns {Object} - Dados do projeto
+     */
+    async getProject(projectId) {
+        try {
+            const doc = await this.db.collection('projects').doc(projectId).get();
+
+            if (!doc.exists) {
+                throw new Error('Project not found');
+            }
+
+            return {
+                id: doc.id,
+                ...doc.data(),
+            };
+        } catch (error) {
+            console.error('Error fetching project:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Lista todos os projetos de um usuário
+     * @param {String} ownerUid - ID do usuário
+     * @returns {Array} - Lista de projetos
+     */
+    async listProjects(ownerUid) {
+        try {
+            const snapshot = await this.db
+                .collection('projects')
+                .where('owner_uid', '==', ownerUid)
+                .orderBy('created_at', 'desc')
+                .get();
+
+            const projects = [];
+            snapshot.forEach((doc) => {
+                projects.push({
+                    id: doc.id,
+                    ...doc.data(),
+                });
+            });
+
+            return projects;
+        } catch (error) {
+            console.error('Error listing projects:', error);
+            throw new Error('Failed to list projects');
+        }
+    }
+
+    /**
+     * Atualiza um projeto existente
+     * @param {String} projectId - ID do projeto
+     * @param {Object} updates - Dados a atualizar
+     * @returns {Object} - Projeto atualizado
+     */
+    async updateProject(projectId, updates) {
+        try {
+            const updateData = {
+                ...updates,
+                updated_at: new Date().toISOString(),
+            };
+
+            await this.db.collection('projects').doc(projectId).update(updateData);
+
+            return await this.getProject(projectId);
+        } catch (error) {
+            console.error('Error updating project:', error);
+            throw new Error('Failed to update project');
+        }
+    }
+
+    /**
+     * Deleta um projeto
+     * @param {String} projectId - ID do projeto
+     */
+    async deleteProject(projectId) {
+        try {
+            await this.db.collection('projects').doc(projectId).delete();
+            return { success: true, message: 'Project deleted successfully' };
+        } catch (error) {
+            console.error('Error deleting project:', error);
+            throw new Error('Failed to delete project');
+        }
+    }
+}
+
+export default ProjectService;
+
+
+==================================================================
+ARQUIVO: \DEPLOY.md
+==================================================================
+
+# 🚀 Guia de Deploy - RPA ROI Navigator
+
+Este guia detalha o processo de deploy da aplicação no Render.
+
+## 📋 Pré-requisitos
+
+1. Conta no [Render](https://render.com)
+2. Conta no [Firebase](https://firebase.google.com)
+3. Repositório Git (GitHub, GitLab ou Bitbucket)
+4. Credenciais do Firebase Admin SDK
+
+## 🔥 Configuração do Firebase
+
+### 1. Criar Projeto Firebase
+
+1. Acesse o [Console do Firebase](https://console.firebase.google.com)
+2. Clique em "Adicionar projeto"
+3. Siga o assistente de criação
+
+### 2. Habilitar Firestore
+
+1. No menu lateral, clique em "Firestore Database"
+2. Clique em "Criar banco de dados"
+3. Escolha o modo de produção
+4. Selecione a região (southamerica-east1 para Brasil)
+
+### 3. Obter Credenciais Admin SDK
+
+1. Vá em "Configurações do projeto" (ícone de engrenagem)
+2. Aba "Contas de serviço"
+3. Clique em "Gerar nova chave privada"
+4. Salve o arquivo JSON
+
+### 4. Obter Credenciais Client SDK
+
+1. Na mesma tela de configurações
+2. Role até "Seus aplicativos"
+3. Clique no ícone Web (</>)
+4. Copie as configurações do Firebase
+
+### 5. Inicializar Firestore
+
+No backend, após configurar o `.env`:
+
+```bash
+cd backend
+node src/scripts/initFirestore.js
+```
+
+## 🌐 Deploy do Backend (Render Web Service)
+
+### 1. Criar Web Service
+
+1. Acesse o [Dashboard do Render](https://dashboard.render.com)
+2. Clique em "New +" → "Web Service"
+3. Conecte seu repositório Git
+4. Configure:
+   - **Name**: `rpa-roi-navigator-api`
+   - **Region**: Oregon (US West) ou Frankfurt (EU)
+   - **Branch**: `main`
+   - **Root Directory**: `backend`
+   - **Runtime**: Node
+   - **Build Command**: `npm install`
+   - **Start Command**: `npm start`
+   - **Instance Type**: Free (ou Starter para produção)
+
+### 2. Configurar Variáveis de Ambiente
+
+Na seção "Environment Variables", adicione:
+
+```
+PORT=5000
+NODE_ENV=production
+FIREBASE_PROJECT_ID=seu-projeto-id
+FIREBASE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk@seu-projeto.iam.gserviceaccount.com
+ALLOWED_ORIGINS=https://seu-frontend.onrender.com
+```
+
+**Importante**: Para a `FIREBASE_PRIVATE_KEY`, copie o conteúdo do arquivo JSON baixado, campo `private_key`, mantendo os `\n`.
+
+### 3. Deploy
+
+1. Clique em "Create Web Service"
+2. Aguarde o deploy (3-5 minutos)
+3. Anote a URL gerada (ex: `https://rpa-roi-navigator-api.onrender.com`)
+
+### 4. Testar
+
+```bash
+curl https://rpa-roi-navigator-api.onrender.com/api/health
+```
+
+Deve retornar:
+```json
+{
+  "success": true,
+  "message": "RPA ROI Navigator API is running",
+  "timestamp": "2024-..."
+}
+```
+
+## 🎨 Deploy do Frontend (Render Static Site)
+
+### 1. Criar Static Site
+
+1. No Dashboard do Render, clique em "New +" → "Static Site"
+2. Conecte o mesmo repositório
+3. Configure:
+   - **Name**: `rpa-roi-navigator`
+   - **Branch**: `main`
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm install && npm run build`
+   - **Publish Directory**: `dist`
+
+### 2. Configurar Variáveis de Ambiente
+
+Na seção "Environment Variables":
+
+```
+VITE_API_URL=https://rpa-roi-navigator-api.onrender.com
+VITE_FIREBASE_API_KEY=sua-api-key
+VITE_FIREBASE_AUTH_DOMAIN=seu-projeto.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=seu-projeto-id
+VITE_FIREBASE_STORAGE_BUCKET=seu-projeto.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+VITE_FIREBASE_APP_ID=1:123456789:web:abcdef
+```
+
+### 3. Deploy
+
+1. Clique em "Create Static Site"
+2. Aguarde o build (2-4 minutos)
+3. Acesse a URL gerada (ex: `https://rpa-roi-navigator.onrender.com`)
+
+## 🔄 Atualizar CORS no Backend
+
+Após o deploy do frontend, atualize a variável `ALLOWED_ORIGINS` no backend:
+
+```
+ALLOWED_ORIGINS=https://rpa-roi-navigator.onrender.com,http://localhost:5173
+```
+
+Clique em "Manual Deploy" → "Deploy latest commit" para aplicar.
+
+## 📊 Regras de Segurança do Firestore
+
+No Console do Firebase, vá em "Firestore Database" → "Regras":
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Permitir leitura das configurações globais
+    match /settings/{document=**} {
+      allow read: if true;
+      allow write: if false; // Apenas via Admin SDK
+    }
+    
+    // Projetos: permitir leitura/escrita (adicionar autenticação futuramente)
+    match /projects/{projectId} {
+      allow read, write: if true; // TODO: Adicionar autenticação
+    }
+  }
+}
+```
+
+Clique em "Publicar".
+
+## ✅ Checklist de Deploy
+
+- [ ] Firebase criado e Firestore habilitado
+- [ ] Credenciais Admin SDK obtidas
+- [ ] Credenciais Client SDK obtidas
+- [ ] Firestore inicializado com dados padrão
+- [ ] Backend deployado no Render
+- [ ] Variáveis de ambiente do backend configuradas
+- [ ] Health check do backend funcionando
+- [ ] Frontend deployado no Render
+- [ ] Variáveis de ambiente do frontend configuradas
+- [ ] CORS atualizado no backend
+- [ ] Regras de segurança do Firestore configuradas
+- [ ] Aplicação testada end-to-end
+
+## 🔧 Troubleshooting
+
+### Backend não inicia
+
+- Verifique os logs no Render
+- Confirme que a `FIREBASE_PRIVATE_KEY` está correta (com `\n`)
+- Teste localmente com as mesmas variáveis
+
+### CORS Error
+
+- Verifique se a URL do frontend está em `ALLOWED_ORIGINS`
+- Certifique-se de usar HTTPS em produção
+
+### Firestore Permission Denied
+
+- Verifique as regras de segurança
+- Confirme que as credenciais estão corretas
+
+### Build do Frontend falha
+
+- Verifique se todas as variáveis `VITE_*` estão configuradas
+- Teste o build localmente: `npm run build`
+
+## 📈 Monitoramento
+
+### Render
+
+- Acesse o dashboard de cada serviço
+- Monitore logs em tempo real
+- Configure alertas de downtime
+
+### Firebase
+
+- Console do Firebase → "Uso e faturamento"
+- Monitore leituras/escritas do Firestore
+- Configure alertas de quota
+
+## 🎉 Pronto!
+
+Sua aplicação está no ar! Acesse:
+
+- **Frontend**: `https://rpa-roi-navigator.onrender.com`
+- **API**: `https://rpa-roi-navigator-api.onrender.com`
+
+## 📞 Suporte
+
+Para problemas ou dúvidas:
+- Documentação do Render: https://render.com/docs
+- Documentação do Firebase: https://firebase.google.com/docs
+
+
+==================================================================
+ARQUIVO: \EXAMPLES.md
+==================================================================
+
+# 📝 Exemplos e Casos de Teste - RPA ROI Navigator
+
+Este documento contém exemplos práticos de uso e casos de teste para validação.
+
+## 🎯 Casos de Uso
+
+### Caso 1: Automação Simples (Complexidade BAIXA)
+
+**Cenário**: Automação de extração de dados de planilhas Excel para sistema web.
+
+**Inputs AS-IS:**
+- Volume Mensal: 2.000 transações
+- AHT: 5 minutos
+- Custo FTE: R$ 6.000/mês
+- Taxa de Erro: 2%
+
+**Complexidade:**
+- Nº Aplicações: 2 (Excel + Web)
+- Tipo de Dados: Estruturados
+- Ambiente: Web
+- Nº Passos: 15
+
+**Pontuação Esperada**: 1 + 1 + 1 + 1 = 4 pontos → **BAIXA**
+
+**Resultados Esperados:**
+- Horas de Desenvolvimento: 80h dev + 24h análise = 104h
+- Custo de Desenvolvimento: (80 × R$ 120) + (24 × R$ 150) = R$ 13.200
+- Custo AS-IS Anual: (2000 × 5 × 12) × (6000/9600) × 1,02 = R$ 76.500
+- Custo TO-BE Anual: R$ 15.000 + R$ 5.000 + (R$ 13.200 × 0,15) = R$ 21.980
+- Economia Anual: R$ 76.500 - R$ 21.980 = R$ 54.520
+- ROI Ano 1: ((54.520 - 13.200) / 13.200) × 100 = **313%**
+- Payback: 13.200 / (54.520/12) = **2,9 meses**
+
+---
+
+### Caso 2: Automação Média (Complexidade MÉDIA)
+
+**Cenário**: Automação de processamento de faturas com validação de dados.
+
+**Inputs AS-IS:**
+- Volume Mensal: 5.000 transações
+- AHT: 10 minutos
+- Custo FTE: R$ 8.000/mês
+- Taxa de Erro: 5%
+
+**Complexidade:**
+- Nº Aplicações: 3 (ERP + E-mail + Web)
+- Tipo de Dados: Estruturados
+- Ambiente: Web
+- Nº Passos: 25
+
+**Pontuação Esperada**: 2 + 1 + 1 + 3 = 7 pontos → **MÉDIA**
+
+**Resultados Esperados:**
+- Horas: 160h dev + 48h análise = 208h
+- Custo Dev: (160 × 120) + (48 × 150) = R$ 26.400
+- Custo AS-IS: (5000 × 10 × 12) × (8000/9600) × 1,05 = R$ 524.900
+- Custo TO-BE: 15.000 + 5.000 + (26.400 × 0,15) = R$ 23.960
+- Economia: R$ 524.900 - R$ 23.960 = R$ 500.940
+- ROI: ((500.940 - 26.400) / 26.400) × 100 = **1.797%**
+- Payback: 26.400 / (500.940/12) = **0,6 meses** (~18 dias)
+
+---
+
+### Caso 3: Automação Complexa (Complexidade ALTA)
+
+**Cenário**: Automação de processamento de documentos com OCR em ambiente Citrix.
+
+**Inputs AS-IS:**
+- Volume Mensal: 10.000 transações
+- AHT: 15 minutos
+- Custo FTE: R$ 10.000/mês
+- Taxa de Erro: 8%
+
+**Complexidade:**
+- Nº Aplicações: 5+ (Citrix + SAP + OCR + E-mail + Web)
+- Tipo de Dados: Imagem/OCR
+- Ambiente: Citrix
+- Nº Passos: 60
+
+**Pontuação Esperada**: 3 + 5 + 4 + 5 = 17 pontos → **ALTA**
+
+**Resultados Esperados:**
+- Horas: 320h dev + 96h análise = 416h
+- Custo Dev: (320 × 120) + (96 × 150) = R$ 52.800
+- Custo AS-IS: (10000 × 15 × 12) × (10000/9600) × 1,08 = R$ 2.025.000
+- Custo TO-BE: 15.000 + 5.000 + (52.800 × 0,15) = R$ 27.920
+- Economia: R$ 2.025.000 - R$ 27.920 = R$ 1.997.080
+- ROI: ((1.997.080 - 52.800) / 52.800) × 100 = **3.682%**
+- Payback: 52.800 / (1.997.080/12) = **0,3 meses** (~9 dias)
+
+---
+
+### Caso 4: Cenário com ROI Negativo
+
+**Cenário**: Automação de processo com volume muito baixo.
+
+**Inputs AS-IS:**
+- Volume Mensal: 100 transações
+- AHT: 30 minutos
+- Custo FTE: R$ 5.000/mês
+- Taxa de Erro: 0%
+
+**Complexidade:**
+- Nº Aplicações: 4
+- Tipo de Dados: Texto
+- Ambiente: SAP
+- Nº Passos: 40
+
+**Pontuação Esperada**: 2 + 2 + 2 + 3 = 9 pontos → **MÉDIA**
+
+**Resultados Esperados:**
+- Custo Dev: R$ 26.400
+- Custo AS-IS: (100 × 30 × 12) × (5000/9600) × 1,0 = R$ 18.750
+- Custo TO-BE: R$ 23.960
+- Economia: R$ 18.750 - R$ 23.960 = **-R$ 5.210** (custo maior!)
+- ROI: ((-5.210 - 26.400) / 26.400) × 100 = **-119%** (prejuízo)
+- Payback: **Nunca** (economia negativa)
+
+**Conclusão**: Automação não é viável economicamente.
+
+---
+
+## 🧪 Testes de API
+
+### Teste 1: Health Check
+
+```bash
+curl http://localhost:5000/api/health
+```
+
+**Resposta Esperada:**
+```json
+{
+  "success": true,
+  "message": "RPA ROI Navigator API is running",
+  "timestamp": "2024-01-15T..."
+}
+```
+
+---
+
+### Teste 2: Criar Projeto (Caso Médio)
+
+```bash
+curl -X POST http://localhost:5000/api/projects \
+  -H "Content-Type: application/json" \
+  -d '{
+    "projectName": "Teste - Automação Média",
+    "ownerUid": "test_user",
+    "inputs": {
+      "volume": 5000,
+      "aht": 10,
+      "fteCost": 8000,
+      "errorRate": 5
+    },
+    "complexity": {
+      "numApplications": 3,
+      "dataType": "structured",
+      "environment": "web",
+      "numSteps": 25
+    }
+  }'
+```
+
+**Validações:**
+- Status: 201 Created
+- `complexity_score.classification`: "MEDIUM"
+- `complexity_score.total_points`: 7
+- `results.roi_year_1`: ~1797%
+- `results.payback_months`: ~0.6
+
+---
+
+### Teste 3: Buscar Configurações
+
+```bash
+curl http://localhost:5000/api/settings
+```
+
+**Resposta Esperada:**
+```json
+{
+  "success": true,
+  "data": {
+    "rates": {
+      "dev_hourly": 120.0,
+      "analyst_hourly": 150.0,
+      "infra_annual": 5000.0,
+      "license_annual": 15000.0
+    },
+    "baselines": {
+      "low": 104,
+      "medium": 208,
+      "high": 416
+    }
+  }
+}
+```
+
+---
+
+### Teste 4: Listar Projetos
+
+```bash
+curl "http://localhost:5000/api/projects?ownerUid=test_user"
+```
+
+**Validações:**
+- Status: 200 OK
+- Array de projetos
+- Ordenado por `created_at` (desc)
+
+---
+
+### Teste 5: Validação de Erro (Campos Faltando)
+
+```bash
+curl -X POST http://localhost:5000/api/projects \
+  -H "Content-Type: application/json" \
+  -d '{
+    "projectName": "Teste Incompleto"
+  }'
+```
+
+**Resposta Esperada:**
+```json
+{
+  "success": false,
+  "error": "Missing required fields: projectName, inputs, complexity"
+}
+```
+
+Status: 400 Bad Request
+
+---
+
+## 🎨 Testes de Frontend
+
+### Teste 1: Wizard - Validação de Step 1
+
+1. Acesse `http://localhost:5173`
+2. Deixe o campo "Nome do Projeto" vazio
+3. Tente clicar em "Próximo"
+4. **Esperado**: Botão desabilitado
+
+### Teste 2: Wizard - Validação de Step 2
+
+1. Preencha Step 1 e avance
+2. No Step 2, insira valores inválidos (negativos ou zero)
+3. **Esperado**: Botão "Próximo" desabilitado
+
+### Teste 3: Wizard - Cálculo Completo
+
+1. Preencha todos os steps com dados válidos
+2. Clique em "Calcular ROI"
+3. **Esperado**: 
+   - Loading spinner aparece
+   - Após 1-2s, dashboard de resultados é exibido
+   - KPIs estão visíveis
+   - Gráficos são renderizados
+
+### Teste 4: Dashboard - Visualização de Gráficos
+
+1. Após calcular ROI, verifique:
+   - Gráfico de barras (AS-IS vs TO-BE)
+   - Gráfico de pizza (Breakdown TO-BE)
+   - Gráfico de linha (Projeção Payback)
+2. **Esperado**: Todos os gráficos renderizados corretamente
+
+### Teste 5: Dashboard - Nova Simulação
+
+1. No dashboard, clique em "Nova Simulação"
+2. **Esperado**: Retorna ao wizard com formulário limpo
+
+---
+
+## 🔍 Testes de Integração
+
+### Teste E2E Completo
+
+**Pré-condições:**
+- Backend rodando em `localhost:5000`
+- Frontend rodando em `localhost:5173`
+- Firestore inicializado
+
+**Passos:**
+
+1. **Abrir aplicação**
+   - Acesse `http://localhost:5173`
+   - Verifique que o wizard é exibido
+
+2. **Step 1: Informações**
+   - Nome: "Teste E2E - Automação de Faturamento"
+   - Responsável: "João Silva"
+   - Clique em "Próximo"
+
+3. **Step 2: AS-IS**
+   - Volume: 5000
+   - AHT: 10
+   - Custo FTE: 8000
+   - Taxa de Erro: 5% (slider)
+   - Clique em "Próximo"
+
+4. **Step 3: Complexidade**
+   - Nº Aplicações: 3
+   - Tipo de Dados: Estruturados
+   - Ambiente: Web/Local
+   - Nº Passos: 25
+   - Verifique chip: "Complexidade: MÉDIA"
+   - Clique em "Próximo"
+
+5. **Step 4: Revisão**
+   - Verifique todos os dados exibidos
+   - Clique em "Calcular ROI"
+
+6. **Resultados**
+   - Aguarde loading
+   - Verifique KPIs:
+     - ROI ~1797%
+     - Economia ~R$ 500k
+     - Payback ~0.6 meses
+     - Complexidade: MÉDIA
+   - Verifique gráficos renderizados
+   - Clique em "Nova Simulação"
+
+7. **Validação Final**
+   - Formulário deve estar limpo
+   - Pronto para nova simulação
+
+**Resultado Esperado**: Todos os passos executados sem erros.
+
+---
+
+## 📊 Matriz de Testes de Complexidade
+
+| Apps | Dados | Ambiente | Passos | Pontos | Classificação |
+|------|-------|----------|--------|--------|---------------|
+| 1 | structured | web | 10 | 4 | BAIXA |
+| 2 | structured | web | 15 | 4 | BAIXA |
+| 3 | structured | web | 25 | 7 | MÉDIA |
+| 4 | text | sap | 30 | 9 | MÉDIA |
+| 5 | text | citrix | 40 | 13 | ALTA |
+| 6 | ocr | citrix | 60 | 17 | ALTA |
+| 2 | ocr | web | 15 | 8 | MÉDIA |
+| 3 | text | web | 55 | 11 | MÉDIA |
+
+---
+
+## ✅ Checklist de Validação
+
+### Backend
+- [ ] Health check responde corretamente
+- [ ] Criar projeto retorna 201
+- [ ] Validação de campos obrigatórios funciona
+- [ ] Cálculo de complexidade está correto
+- [ ] Fórmulas financeiras retornam valores esperados
+- [ ] Firestore salva dados corretamente
+- [ ] CORS permite origem do frontend
+
+### Frontend
+- [ ] Wizard renderiza todos os 4 steps
+- [ ] Validação de campos funciona
+- [ ] Botões habilitam/desabilitam corretamente
+- [ ] Loading state aparece durante cálculo
+- [ ] Dashboard exibe todos os KPIs
+- [ ] Gráficos renderizam corretamente
+- [ ] "Nova Simulação" limpa o formulário
+- [ ] Responsivo em mobile
+
+### Integração
+- [ ] Frontend se comunica com backend
+- [ ] Dados são salvos no Firestore
+- [ ] Configurações globais são carregadas
+- [ ] Erros são tratados adequadamente
+
+---
+
+## 🐛 Casos de Erro Conhecidos
+
+### 1. CORS Error
+**Sintoma**: `Access to XMLHttpRequest has been blocked by CORS policy`
+**Causa**: Frontend não está em `ALLOWED_ORIGINS`
+**Solução**: Adicionar URL do frontend no `.env` do backend
+
+### 2. Firebase Permission Denied
+**Sintoma**: `Missing or insufficient permissions`
+**Causa**: Regras de segurança muito restritivas
+**Solução**: Ajustar regras no Console do Firebase
+
+### 3. Cálculo com Volume Zero
+**Sintoma**: ROI infinito ou NaN
+**Causa**: Divisão por zero
+**Solução**: Validação no frontend impede volume = 0
+
+---
+
+## 📄 Licença
+
+Proprietary - Uso Corporativo
+
+
+==================================================================
+ARQUIVO: \frontend\index.html
+==================================================================
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Calculadora de ROI para Automações RPA - Setor de Energia" />
+    <meta name="theme-color" content="#1976d2" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    
+    <title>RPA ROI Navigator</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+
+==================================================================
+ARQUIVO: \frontend\package.json
+==================================================================
+
+{
+    "name": "rpa-roi-navigator-frontend",
+    "private": true,
+    "version": "1.0.0",
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "@emotion/react": "^11.11.3",
+        "@emotion/styled": "^11.11.0",
+        "@mui/icons-material": "^5.15.10",
+        "@mui/material": "^5.15.10",
+        "axios": "^1.6.7",
+        "firebase": "^10.8.0",
+        "react": "^18.2.0",
+        "react-dom": "^18.2.0",
+        "recharts": "^2.12.0"
+    },
+    "devDependencies": {
+        "@types/react": "^18.2.55",
+        "@types/react-dom": "^18.2.19",
+        "@vitejs/plugin-react": "^4.2.1",
+        "vite": "^5.1.0",
+        "vite-plugin-pwa": "^0.17.5"
+    }
+}
+
+==================================================================
+ARQUIVO: \frontend\README.md
+==================================================================
+
+# Frontend - RPA ROI Navigator
+
+Aplicação PWA para cálculo de ROI de automações RPA.
+
+## 🚀 Tecnologias
+
+- React 18
+- Vite
+- Material UI
+- Recharts (Gráficos)
+- Axios
+- Firebase SDK
+- PWA Support
+
+## 📋 Pré-requisitos
+
+- Node.js 18+ instalado
+- Backend API rodando
+- Credenciais do Firebase (Client SDK)
+
+## 🔧 Instalação
+
+1. Instale as dependências:
+```bash
+npm install
+```
+
+2. Configure as variáveis de ambiente:
+```bash
+cp .env.example .env
+```
+
+3. Edite o arquivo `.env`:
+```env
+VITE_API_URL=http://localhost:5000
+VITE_FIREBASE_API_KEY=sua-api-key
+VITE_FIREBASE_AUTH_DOMAIN=seu-projeto.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=seu-projeto-id
+VITE_FIREBASE_STORAGE_BUCKET=seu-projeto.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+VITE_FIREBASE_APP_ID=1:123456789:web:abcdef
+```
+
+## 🏃 Executando
+
+### Desenvolvimento
+```bash
+npm run dev
+```
+
+### Build de Produção
+```bash
+npm run build
+```
+
+### Preview da Build
+```bash
+npm run preview
+```
+
+A aplicação estará disponível em `http://localhost:5173`
+
+## 🎨 Funcionalidades
+
+### Wizard Multi-Step
+1. **Informações do Projeto** - Nome e responsável
+2. **Cenário AS-IS** - Volume, AHT, custo FTE, taxa de erro
+3. **Complexidade** - Aplicações, tipo de dados, ambiente, passos
+4. **Revisão** - Confirmação dos dados
+
+### Dashboard de Resultados
+- KPIs principais (ROI, Economia, Payback, Complexidade)
+- Gráfico de comparação de custos (AS-IS vs TO-BE)
+- Gráfico de composição de custos TO-BE
+- Projeção de payback mensal
+- Detalhamento financeiro completo
+
+## 🎨 Design System
+
+### Cores Principais
+- Primary: `#667eea` (Roxo/Azul)
+- Secondary: `#764ba2` (Roxo Escuro)
+- Success: `#10b981` (Verde)
+- Warning: `#f59e0b` (Laranja)
+- Error: `#ef4444` (Vermelho)
+
+### Tipografia
+- Família: Inter (Google Fonts)
+- Pesos: 300, 400, 500, 600, 700
+
+### Componentes
+- Gradientes vibrantes
+- Sombras suaves
+- Border radius: 8px
+- Animações micro-interativas
+
+## 📱 PWA
+
+A aplicação é uma Progressive Web App completa:
+- Instalável no dispositivo
+- Funciona offline (service worker)
+- Ícones otimizados (192x192, 512x512)
+- Manifest configurado
+
+## 📦 Deploy (Render Static Site)
+
+1. Build Command: `npm install && npm run build`
+2. Publish Directory: `dist`
+3. Configure as variáveis de ambiente no painel do Render
+
+## 🔒 Segurança
+
+- Validação de inputs no frontend
+- Comunicação segura com API (HTTPS em produção)
+- Firebase SDK para autenticação futura
+
+## 📄 Licença
+
+Proprietary - Uso Corporativo
+
+
+==================================================================
+ARQUIVO: \frontend\src\App.jsx
+==================================================================
+
+import React, { useState } from 'react';
+import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+import ROIWizard from './components/ROIWizard';
+import ResultsDashboard from './components/ResultsDashboard';
+
+// Tema customizado corporativo
+const theme = createTheme({
+    palette: {
+        primary: {
+            main: '#667eea',
+            light: '#8b9df4',
+            dark: '#4c5fd4',
+        },
+        secondary: {
+            main: '#764ba2',
+            light: '#9468bb',
+            dark: '#5a3880',
+        },
+        success: {
+            main: '#10b981',
+            lighter: '#d1fae5',
+            dark: '#059669',
+        },
+        warning: {
+            main: '#f59e0b',
+            lighter: '#fef3c7',
+            dark: '#d97706',
+        },
+        error: {
+            main: '#ef4444',
+            lighter: '#fee2e2',
+            dark: '#dc2626',
+        },
+        info: {
+            main: '#3b82f6',
+            lighter: '#dbeafe',
+            dark: '#2563eb',
+        },
+        grey: {
+            50: '#f9fafb',
+            100: '#f3f4f6',
+            200: '#e5e7eb',
+            300: '#d1d5db',
+            400: '#9ca3af',
+            500: '#6b7280',
+            600: '#4b5563',
+            700: '#374151',
+            800: '#1f2937',
+            900: '#111827',
+        },
+    },
+    typography: {
+        fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+        h1: {
+            fontWeight: 700,
+        },
+        h2: {
+            fontWeight: 700,
+        },
+        h3: {
+            fontWeight: 600,
+        },
+        h4: {
+            fontWeight: 600,
+        },
+        h5: {
+            fontWeight: 600,
+        },
+        h6: {
+            fontWeight: 600,
+        },
+    },
+    shape: {
+        borderRadius: 8,
+    },
+    components: {
+        MuiButton: {
+            styleOverrides: {
+                root: {
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderRadius: 8,
+                    padding: '10px 24px',
+                },
+                contained: {
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                    '&:hover': {
+                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+                    },
+                },
+            },
+        },
+        MuiPaper: {
+            styleOverrides: {
+                root: {
+                    boxShadow: '0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)',
+                },
+                elevation2: {
+                    boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)',
+                },
+                elevation3: {
+                    boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+                },
+            },
+        },
+        MuiTextField: {
+            styleOverrides: {
+                root: {
+                    '& .MuiOutlinedInput-root': {
+                        '&:hover fieldset': {
+                            borderColor: '#667eea',
+                        },
+                    },
+                },
+            },
+        },
+    },
+});
+
+function App() {
+    const [currentView, setCurrentView] = useState('wizard'); // 'wizard' | 'results'
+    const [projectData, setProjectData] = useState(null);
+
+    const handleCalculationComplete = (data) => {
+        setProjectData(data);
+        setCurrentView('results');
+    };
+
+    const handleNewCalculation = () => {
+        setProjectData(null);
+        setCurrentView('wizard');
+    };
+
+    return (
+        <ThemeProvider theme={theme}>
+            <CssBaseline />
+            {currentView === 'wizard' ? (
+                <ROIWizard onComplete={handleCalculationComplete} />
+            ) : (
+                <ResultsDashboard
+                    data={projectData}
+                    onNewCalculation={handleNewCalculation}
+                />
+            )}
+        </ThemeProvider>
+    );
+}
+
+export default App;
+
+
+==================================================================
+ARQUIVO: \frontend\src\components\ResultsDashboard.jsx
+==================================================================
+
+import React from 'react';
+import {
+    Box,
+    Typography,
+    Paper,
+    Grid,
+    Card,
+    CardContent,
+    Chip,
+    Divider,
+    Button,
+    Container,
+} from '@mui/material';
+import {
+    TrendingUp,
+    AttachMoney,
+    Schedule,
+    Assessment,
+    Refresh,
+    Download,
+} from '@mui/icons-material';
+import {
+    BarChart,
+    Bar,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+    LineChart,
+    Line,
+} from 'recharts';
+
+export default function ResultsDashboard({ data, onNewCalculation }) {
+    const formatCurrency = (value) => {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+            minimumFractionDigits: 2,
+        }).format(value);
+    };
+
+    const formatNumber = (value) => {
+        return new Intl.NumberFormat('pt-BR', {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+        }).format(value);
+    };
+
+    const results = data.results;
+    const complexity = data.complexity_score;
+
+    // Dados para gráfico de comparação de custos
+    const costComparisonData = [
+        {
+            name: 'AS-IS (Atual)',
+            Anual: results.as_is_cost_annual,
+            Mensal: results.as_is_cost_annual / 12,
+        },
+        {
+            name: 'TO-BE (Automação)',
+            Anual: results.to_be_cost_annual,
+            Mensal: results.to_be_cost_annual / 12,
+        },
+    ];
+
+    // Dados para gráfico de breakdown de custos TO-BE
+    const toBeCostBreakdown = [
+        { name: 'Licenças', value: results.cost_breakdown.licenseCost },
+        { name: 'Infraestrutura', value: results.cost_breakdown.infraCost },
+        { name: 'Manutenção', value: results.cost_breakdown.maintenanceCost },
+    ];
+
+    // Dados para projeção de payback
+    const paybackData = [];
+    const monthlySavings = results.monthly_savings;
+    let accumulated = -results.development_cost;
+
+    for (let month = 0; month <= Math.ceil(results.payback_months || 12); month++) {
+        accumulated += monthlySavings;
+        paybackData.push({
+            month: month,
+            accumulated: accumulated,
+        });
+    }
+
+    const COLORS = ['#667eea', '#764ba2', '#f093fb'];
+
+    const getROIColor = (roi) => {
+        if (roi >= 100) return 'success';
+        if (roi >= 50) return 'warning';
+        return 'error';
+    };
+
+    const getComplexityColor = (classification) => {
+        if (classification === 'HIGH') return 'error';
+        if (classification === 'MEDIUM') return 'warning';
+        return 'success';
+    };
+
+    return (
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+            {/* Header */}
+            <Paper
+                elevation={3}
+                sx={{
+                    p: 4,
+                    borderRadius: 2,
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    mb: 3,
+                }}
+            >
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box>
+                        <Typography variant="h4" component="h1" gutterBottom fontWeight={700}>
+                            Resultados da Análise
+                        </Typography>
+                        <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                            {data.project_name}
+                        </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                        <Button
+                            variant="contained"
+                            startIcon={<Download />}
+                            sx={{
+                                backgroundColor: 'rgba(255,255,255,0.2)',
+                                '&:hover': { backgroundColor: 'rgba(255,255,255,0.3)' },
+                            }}
+                        >
+                            Exportar PDF
+                        </Button>
+                        <Button
+                            variant="contained"
+                            startIcon={<Refresh />}
+                            onClick={onNewCalculation}
+                            sx={{
+                                backgroundColor: 'rgba(255,255,255,0.2)',
+                                '&:hover': { backgroundColor: 'rgba(255,255,255,0.3)' },
+                            }}
+                        >
+                            Nova Simulação
+                        </Button>
+                    </Box>
+                </Box>
+            </Paper>
+
+            {/* KPIs Principais */}
+            <Grid container spacing={3} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card
+                        sx={{
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            color: 'white',
+                        }}
+                    >
+                        <CardContent>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                <TrendingUp sx={{ mr: 1 }} />
+                                <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                                    ROI Ano 1
+                                </Typography>
+                            </Box>
+                            <Typography variant="h3" fontWeight={700}>
+                                {formatNumber(results.roi_year_1)}%
+                            </Typography>
+                            <Chip
+                                label={results.roi_year_1 >= 100 ? 'Excelente' : results.roi_year_1 >= 50 ? 'Bom' : 'Atenção'}
+                                size="small"
+                                sx={{
+                                    mt: 1,
+                                    backgroundColor: 'rgba(255,255,255,0.2)',
+                                    color: 'white',
+                                }}
+                            />
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                        <CardContent>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                <AttachMoney sx={{ mr: 1, color: 'success.main' }} />
+                                <Typography variant="body2" color="text.secondary">
+                                    Economia Anual
+                                </Typography>
+                            </Box>
+                            <Typography variant="h4" fontWeight={700} color="success.main">
+                                {formatCurrency(results.annual_savings)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                {formatCurrency(results.monthly_savings)}/mês
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                        <CardContent>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                <Schedule sx={{ mr: 1, color: 'info.main' }} />
+                                <Typography variant="body2" color="text.secondary">
+                                    Payback
+                                </Typography>
+                            </Box>
+                            <Typography variant="h4" fontWeight={700} color="info.main">
+                                {formatNumber(results.payback_months)}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                meses
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                        <CardContent>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                <Assessment sx={{ mr: 1, color: getComplexityColor(complexity.classification) }} />
+                                <Typography variant="body2" color="text.secondary">
+                                    Complexidade
+                                </Typography>
+                            </Box>
+                            <Typography variant="h4" fontWeight={700}>
+                                {complexity.classification}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                {complexity.hours.totalHours}h desenvolvimento
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                </Grid>
+            </Grid>
+
+            {/* Gráficos */}
+            <Grid container spacing={3} sx={{ mb: 3 }}>
+                {/* Comparação de Custos */}
+                <Grid item xs={12} md={6}>
+                    <Paper sx={{ p: 3, borderRadius: 2 }}>
+                        <Typography variant="h6" fontWeight={600} gutterBottom>
+                            Comparação de Custos
+                        </Typography>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={costComparisonData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" />
+                                <YAxis tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`} />
+                                <Tooltip formatter={(value) => formatCurrency(value)} />
+                                <Legend />
+                                <Bar dataKey="Anual" fill="#667eea" />
+                                <Bar dataKey="Mensal" fill="#764ba2" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </Paper>
+                </Grid>
+
+                {/* Breakdown Custos TO-BE */}
+                <Grid item xs={12} md={6}>
+                    <Paper sx={{ p: 3, borderRadius: 2 }}>
+                        <Typography variant="h6" fontWeight={600} gutterBottom>
+                            Composição Custos TO-BE
+                        </Typography>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <PieChart>
+                                <Pie
+                                    data={toBeCostBreakdown}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                    outerRadius={80}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                >
+                                    {toBeCostBreakdown.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip formatter={(value) => formatCurrency(value)} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </Paper>
+                </Grid>
+
+                {/* Projeção de Payback */}
+                <Grid item xs={12}>
+                    <Paper sx={{ p: 3, borderRadius: 2 }}>
+                        <Typography variant="h6" fontWeight={600} gutterBottom>
+                            Projeção de Payback
+                        </Typography>
+                        <ResponsiveContainer width="100%" height={300}>
+                            <LineChart data={paybackData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="month" label={{ value: 'Meses', position: 'insideBottom', offset: -5 }} />
+                                <YAxis tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`} />
+                                <Tooltip formatter={(value) => formatCurrency(value)} />
+                                <Legend />
+                                <Line
+                                    type="monotone"
+                                    dataKey="accumulated"
+                                    stroke="#667eea"
+                                    strokeWidth={3}
+                                    name="Economia Acumulada"
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey={() => 0}
+                                    stroke="#ff0000"
+                                    strokeDasharray="5 5"
+                                    name="Break-even"
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </Paper>
+                </Grid>
+            </Grid>
+
+            {/* Detalhamento Financeiro */}
+            <Paper sx={{ p: 3, borderRadius: 2 }}>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                    Detalhamento Financeiro
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+
+                <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                            Investimento Inicial
+                        </Typography>
+                        <Box sx={{ pl: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="body2">Desenvolvimento ({complexity.hours.devHours}h)</Typography>
+                                <Typography variant="body2" fontWeight={600}>
+                                    {formatCurrency(results.development_cost * (complexity.hours.devHours / complexity.hours.totalHours))}
+                                </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="body2">Análise ({complexity.hours.analystHours}h)</Typography>
+                                <Typography variant="body2" fontWeight={600}>
+                                    {formatCurrency(results.development_cost * (complexity.hours.analystHours / complexity.hours.totalHours))}
+                                </Typography>
+                            </Box>
+                            <Divider sx={{ my: 1 }} />
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography variant="body1" fontWeight={600}>Total</Typography>
+                                <Typography variant="body1" fontWeight={700} color="primary">
+                                    {formatCurrency(results.development_cost)}
+                                </Typography>
+                            </Box>
+                        </Box>
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                            Custos Operacionais Anuais (TO-BE)
+                        </Typography>
+                        <Box sx={{ pl: 2 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="body2">Licenças RPA</Typography>
+                                <Typography variant="body2" fontWeight={600}>
+                                    {formatCurrency(results.cost_breakdown.licenseCost)}
+                                </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="body2">Infraestrutura</Typography>
+                                <Typography variant="body2" fontWeight={600}>
+                                    {formatCurrency(results.cost_breakdown.infraCost)}
+                                </Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="body2">Manutenção (15%)</Typography>
+                                <Typography variant="body2" fontWeight={600}>
+                                    {formatCurrency(results.cost_breakdown.maintenanceCost)}
+                                </Typography>
+                            </Box>
+                            <Divider sx={{ my: 1 }} />
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Typography variant="body1" fontWeight={600}>Total Anual</Typography>
+                                <Typography variant="body1" fontWeight={700} color="primary">
+                                    {formatCurrency(results.to_be_cost_annual)}
+                                </Typography>
+                            </Box>
+                        </Box>
+                    </Grid>
+                </Grid>
+            </Paper>
+        </Container>
+    );
+}
+
+
+==================================================================
+ARQUIVO: \frontend\src\components\ROIWizard.jsx
+==================================================================
+
+import React, { useState } from 'react';
+import {
+    Box,
+    Stepper,
+    Step,
+    StepLabel,
+    Button,
+    Typography,
+    Paper,
+    Container,
+    CircularProgress,
+    Alert,
+} from '@mui/material';
+import {
+    NavigateNext,
+    NavigateBefore,
+    Calculate,
+} from '@mui/icons-material';
+import Step1ProjectInfo from './steps/Step1ProjectInfo';
+import Step2AsIsInputs from './steps/Step2AsIsInputs';
+import Step3Complexity from './steps/Step3Complexity';
+import Step4Review from './steps/Step4Review';
+import { projectService } from '../services/api';
+
+const steps = [
+    'Informações do Projeto',
+    'Cenário AS-IS',
+    'Complexidade',
+    'Revisão',
+];
+
+export default function ROIWizard({ onComplete }) {
+    const [activeStep, setActiveStep] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
+
+    // Estado do formulário
+    const [formData, setFormData] = useState({
+        // Step 1
+        projectName: '',
+        ownerUid: 'anonymous',
+
+        // Step 2 - AS-IS Inputs
+        inputs: {
+            volume: '',
+            aht: '',
+            fteCost: '',
+            errorRate: 0,
+        },
+
+        // Step 3 - Complexity
+        complexity: {
+            numApplications: 1,
+            dataType: 'structured',
+            environment: 'web',
+            numSteps: 10,
+        },
+    });
+
+    const handleNext = () => {
+        setError(null);
+        setActiveStep((prevActiveStep) => prevActiveStep + 1);
+    };
+
+    const handleBack = () => {
+        setError(null);
+        setActiveStep((prevActiveStep) => prevActiveStep - 1);
+    };
+
+    const handleReset = () => {
+        setActiveStep(0);
+        setError(null);
+        setFormData({
+            projectName: '',
+            ownerUid: 'anonymous',
+            inputs: {
+                volume: '',
+                aht: '',
+                fteCost: '',
+                errorRate: 0,
+            },
+            complexity: {
+                numApplications: 1,
+                dataType: 'structured',
+                environment: 'web',
+                numSteps: 10,
+            },
+        });
+    };
+
+    const handleSubmit = async () => {
+        setLoading(true);
+        setError(null);
+
+        try {
+            // Converter strings para números
+            const payload = {
+                projectName: formData.projectName,
+                ownerUid: formData.ownerUid,
+                inputs: {
+                    volume: parseFloat(formData.inputs.volume),
+                    aht: parseFloat(formData.inputs.aht),
+                    fteCost: parseFloat(formData.inputs.fteCost),
+                    errorRate: parseFloat(formData.inputs.errorRate) || 0,
+                },
+                complexity: {
+                    numApplications: parseInt(formData.complexity.numApplications),
+                    dataType: formData.complexity.dataType,
+                    environment: formData.complexity.environment,
+                    numSteps: parseInt(formData.complexity.numSteps),
+                },
+            };
+
+            const result = await projectService.createProject(payload);
+
+            if (result.success) {
+                onComplete(result.data);
+            } else {
+                setError(result.error || 'Erro ao criar projeto');
+            }
+        } catch (err) {
+            console.error('Error submitting project:', err);
+            setError(err.response?.data?.error || 'Erro ao processar solicitação');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const updateFormData = (field, value) => {
+        setFormData((prev) => ({
+            ...prev,
+            [field]: value,
+        }));
+    };
+
+    const isStepValid = () => {
+        switch (activeStep) {
+            case 0:
+                return formData.projectName.trim().length > 0;
+            case 1:
+                return (
+                    formData.inputs.volume > 0 &&
+                    formData.inputs.aht > 0 &&
+                    formData.inputs.fteCost > 0
+                );
+            case 2:
+                return (
+                    formData.complexity.numApplications > 0 &&
+                    formData.complexity.numSteps > 0
+                );
+            case 3:
+                return true;
+            default:
+                return false;
+        }
+    };
+
+    const renderStepContent = (step) => {
+        switch (step) {
+            case 0:
+                return (
+                    <Step1ProjectInfo
+                        data={formData}
+                        onChange={updateFormData}
+                    />
+                );
+            case 1:
+                return (
+                    <Step2AsIsInputs
+                        data={formData.inputs}
+                        onChange={(value) => updateFormData('inputs', value)}
+                    />
+                );
+            case 2:
+                return (
+                    <Step3Complexity
+                        data={formData.complexity}
+                        onChange={(value) => updateFormData('complexity', value)}
+                    />
+                );
+            case 3:
+                return <Step4Review data={formData} />;
+            default:
+                return <Typography>Passo desconhecido</Typography>;
+        }
+    };
+
+    return (
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+            <Paper
+                elevation={3}
+                sx={{
+                    p: 4,
+                    borderRadius: 2,
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    mb: 3,
+                }}
+            >
+                <Typography variant="h4" component="h1" gutterBottom fontWeight={700}>
+                    RPA ROI Navigator
+                </Typography>
+                <Typography variant="body1" sx={{ opacity: 0.9 }}>
+                    Calcule o retorno sobre investimento de suas automações
+                </Typography>
+            </Paper>
+
+            <Paper elevation={2} sx={{ p: 4, borderRadius: 2 }}>
+                <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+                    {steps.map((label) => (
+                        <Step key={label}>
+                            <StepLabel>{label}</StepLabel>
+                        </Step>
+                    ))}
+                </Stepper>
+
+                {error && (
+                    <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+                        {error}
+                    </Alert>
+                )}
+
+                <Box sx={{ minHeight: 400 }}>
+                    {renderStepContent(activeStep)}
+                </Box>
+
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+                    <Button
+                        disabled={activeStep === 0 || loading}
+                        onClick={handleBack}
+                        startIcon={<NavigateBefore />}
+                        variant="outlined"
+                    >
+                        Voltar
+                    </Button>
+
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                        {activeStep === steps.length - 1 ? (
+                            <>
+                                <Button
+                                    onClick={handleReset}
+                                    variant="outlined"
+                                    disabled={loading}
+                                >
+                                    Reiniciar
+                                </Button>
+                                <Button
+                                    onClick={handleSubmit}
+                                    variant="contained"
+                                    startIcon={loading ? <CircularProgress size={20} /> : <Calculate />}
+                                    disabled={loading || !isStepValid()}
+                                    sx={{
+                                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                        '&:hover': {
+                                            background: 'linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)',
+                                        },
+                                    }}
+                                >
+                                    {loading ? 'Calculando...' : 'Calcular ROI'}
+                                </Button>
+                            </>
+                        ) : (
+                            <Button
+                                onClick={handleNext}
+                                variant="contained"
+                                endIcon={<NavigateNext />}
+                                disabled={!isStepValid()}
+                            >
+                                Próximo
+                            </Button>
+                        )}
+                    </Box>
+                </Box>
+            </Paper>
+        </Container>
+    );
+}
+
+
+==================================================================
+ARQUIVO: \frontend\src\components\steps\Step1ProjectInfo.jsx
+==================================================================
+
+import React from 'react';
+import {
+    Box,
+    TextField,
+    Typography,
+    Paper,
+} from '@mui/material';
+import { Business } from '@mui/icons-material';
+
+export default function Step1ProjectInfo({ data, onChange }) {
+    return (
+        <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Business sx={{ fontSize: 40, color: 'primary.main', mr: 2 }} />
+                <Box>
+                    <Typography variant="h5" fontWeight={600}>
+                        Informações do Projeto
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Identifique o projeto de automação
+                    </Typography>
+                </Box>
+            </Box>
+
+            <Paper
+                elevation={0}
+                sx={{
+                    p: 3,
+                    backgroundColor: 'grey.50',
+                    borderRadius: 2,
+                }}
+            >
+                <TextField
+                    fullWidth
+                    label="Nome do Projeto"
+                    placeholder="Ex: Automação de Faturamento Mensal"
+                    value={data.projectName}
+                    onChange={(e) => onChange('projectName', e.target.value)}
+                    required
+                    variant="outlined"
+                    sx={{ mb: 3 }}
+                    helperText="Dê um nome descritivo para este projeto de automação"
+                />
+
+                <TextField
+                    fullWidth
+                    label="Responsável (Opcional)"
+                    placeholder="Ex: João Silva"
+                    value={data.ownerUid}
+                    onChange={(e) => onChange('ownerUid', e.target.value || 'anonymous')}
+                    variant="outlined"
+                    helperText="Nome ou ID do responsável pelo projeto"
+                />
+            </Paper>
+
+            <Box
+                sx={{
+                    mt: 3,
+                    p: 2,
+                    backgroundColor: 'info.lighter',
+                    borderLeft: 4,
+                    borderColor: 'info.main',
+                    borderRadius: 1,
+                }}
+            >
+                <Typography variant="body2" color="info.dark">
+                    <strong>Dica:</strong> Use um nome que facilite a identificação deste projeto
+                    no futuro. Você poderá criar múltiplas simulações.
+                </Typography>
+            </Box>
+        </Box>
+    );
+}
+
+
+==================================================================
+ARQUIVO: \frontend\src\components\steps\Step2AsIsInputs.jsx
+==================================================================
+
+import React from 'react';
+import {
+    Box,
+    TextField,
+    Typography,
+    Paper,
+    Grid,
+    InputAdornment,
+    Slider,
+} from '@mui/material';
+import {
+    TrendingUp,
+    AccessTime,
+    AttachMoney,
+    ErrorOutline,
+} from '@mui/icons-material';
+
+export default function Step2AsIsInputs({ data, onChange }) {
+    const handleChange = (field, value) => {
+        onChange({
+            ...data,
+            [field]: value,
+        });
+    };
+
+    return (
+        <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <TrendingUp sx={{ fontSize: 40, color: 'primary.main', mr: 2 }} />
+                <Box>
+                    <Typography variant="h5" fontWeight={600}>
+                        Cenário AS-IS (Atual)
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Informe os dados da operação manual atual
+                    </Typography>
+                </Box>
+            </Box>
+
+            <Paper
+                elevation={0}
+                sx={{
+                    p: 3,
+                    backgroundColor: 'grey.50',
+                    borderRadius: 2,
+                }}
+            >
+                <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                        <TextField
+                            fullWidth
+                            label="Volume Mensal"
+                            type="number"
+                            value={data.volume}
+                            onChange={(e) => handleChange('volume', e.target.value)}
+                            required
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <TrendingUp color="action" />
+                                    </InputAdornment>
+                                ),
+                            }}
+                            helperText="Quantidade de transações processadas por mês"
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <TextField
+                            fullWidth
+                            label="AHT (Average Handle Time)"
+                            type="number"
+                            value={data.aht}
+                            onChange={(e) => handleChange('aht', e.target.value)}
+                            required
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <AccessTime color="action" />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: (
+                                    <InputAdornment position="end">minutos</InputAdornment>
+                                ),
+                            }}
+                            helperText="Tempo médio para processar cada transação"
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <TextField
+                            fullWidth
+                            label="Custo Médio do FTE"
+                            type="number"
+                            value={data.fteCost}
+                            onChange={(e) => handleChange('fteCost', e.target.value)}
+                            required
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
+                                        <AttachMoney color="action" />
+                                    </InputAdornment>
+                                ),
+                                endAdornment: (
+                                    <InputAdornment position="end">R$ / mês</InputAdornment>
+                                ),
+                            }}
+                            helperText="Custo mensal de um funcionário (Full Time Equivalent)"
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <Box>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                Taxa de Erro Humano (Opcional)
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <ErrorOutline color="action" />
+                                <Slider
+                                    value={parseFloat(data.errorRate) || 0}
+                                    onChange={(e, value) => handleChange('errorRate', value)}
+                                    min={0}
+                                    max={20}
+                                    step={0.5}
+                                    marks={[
+                                        { value: 0, label: '0%' },
+                                        { value: 10, label: '10%' },
+                                        { value: 20, label: '20%' },
+                                    ]}
+                                    valueLabelDisplay="auto"
+                                    valueLabelFormat={(value) => `${value}%`}
+                                    sx={{ flex: 1 }}
+                                />
+                            </Box>
+                            <Typography variant="caption" color="text.secondary">
+                                Percentual de retrabalho devido a erros manuais
+                            </Typography>
+                        </Box>
+                    </Grid>
+                </Grid>
+            </Paper>
+
+            <Box
+                sx={{
+                    mt: 3,
+                    p: 2,
+                    backgroundColor: 'warning.lighter',
+                    borderLeft: 4,
+                    borderColor: 'warning.main',
+                    borderRadius: 1,
+                }}
+            >
+                <Typography variant="body2" color="warning.dark">
+                    <strong>Importante:</strong> Estes dados representam o cenário atual (AS-IS)
+                    antes da automação. Quanto mais precisos, melhor será o cálculo do ROI.
+                </Typography>
+            </Box>
+        </Box>
+    );
+}
+
+
+==================================================================
+ARQUIVO: \frontend\src\components\steps\Step3Complexity.jsx
+==================================================================
+
+import React from 'react';
+import {
+    Box,
+    Typography,
+    Paper,
+    Grid,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    TextField,
+    Chip,
+} from '@mui/material';
+import {
+    Settings,
+    Apps,
+    Storage,
+    Cloud,
+    AccountTree,
+} from '@mui/icons-material';
+
+export default function Step3Complexity({ data, onChange }) {
+    const handleChange = (field, value) => {
+        onChange({
+            ...data,
+            [field]: value,
+        });
+    };
+
+    const getComplexityEstimate = () => {
+        let points = 0;
+
+        // Número de aplicações
+        if (data.numApplications <= 2) points += 1;
+        else if (data.numApplications <= 4) points += 2;
+        else points += 3;
+
+        // Tipo de dados
+        if (data.dataType === 'structured') points += 1;
+        else if (data.dataType === 'text') points += 2;
+        else points += 5;
+
+        // Ambiente
+        if (data.environment === 'web') points += 1;
+        else if (data.environment === 'sap') points += 2;
+        else points += 4;
+
+        // Passos
+        if (data.numSteps < 20) points += 1;
+        else if (data.numSteps <= 50) points += 3;
+        else points += 5;
+
+        if (points >= 12) return { level: 'ALTA', color: 'error' };
+        if (points >= 7) return { level: 'MÉDIA', color: 'warning' };
+        return { level: 'BAIXA', color: 'success' };
+    };
+
+    const complexity = getComplexityEstimate();
+
+    return (
+        <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <Settings sx={{ fontSize: 40, color: 'primary.main', mr: 2 }} />
+                <Box sx={{ flex: 1 }}>
+                    <Typography variant="h5" fontWeight={600}>
+                        Análise de Complexidade
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Avalie as características técnicas da automação
+                    </Typography>
+                </Box>
+                <Chip
+                    label={`Complexidade: ${complexity.level}`}
+                    color={complexity.color}
+                    sx={{ fontWeight: 600 }}
+                />
+            </Box>
+
+            <Paper
+                elevation={0}
+                sx={{
+                    p: 3,
+                    backgroundColor: 'grey.50',
+                    borderRadius: 2,
+                }}
+            >
+                <Grid container spacing={3}>
+                    <Grid item xs={12} md={6}>
+                        <TextField
+                            fullWidth
+                            label="Número de Aplicações"
+                            type="number"
+                            value={data.numApplications}
+                            onChange={(e) => handleChange('numApplications', e.target.value)}
+                            required
+                            InputProps={{
+                                startAdornment: <Apps color="action" sx={{ mr: 1 }} />,
+                            }}
+                            helperText="Quantos sistemas diferentes o robô irá integrar?"
+                        />
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <FormControl fullWidth required>
+                            <InputLabel>Tipo de Dados</InputLabel>
+                            <Select
+                                value={data.dataType}
+                                onChange={(e) => handleChange('dataType', e.target.value)}
+                                label="Tipo de Dados"
+                                startAdornment={<Storage color="action" sx={{ ml: 1, mr: 1 }} />}
+                            >
+                                <MenuItem value="structured">
+                                    <Box>
+                                        <Typography variant="body1">Estruturados</Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Excel, CSV, Banco de Dados
+                                        </Typography>
+                                    </Box>
+                                </MenuItem>
+                                <MenuItem value="text">
+                                    <Box>
+                                        <Typography variant="body1">Texto/E-mail</Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Processamento de texto, e-mails
+                                        </Typography>
+                                    </Box>
+                                </MenuItem>
+                                <MenuItem value="ocr">
+                                    <Box>
+                                        <Typography variant="body1">Imagem/OCR</Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Reconhecimento de caracteres, PDFs escaneados
+                                        </Typography>
+                                    </Box>
+                                </MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <FormControl fullWidth required>
+                            <InputLabel>Ambiente</InputLabel>
+                            <Select
+                                value={data.environment}
+                                onChange={(e) => handleChange('environment', e.target.value)}
+                                label="Ambiente"
+                                startAdornment={<Cloud color="action" sx={{ ml: 1, mr: 1 }} />}
+                            >
+                                <MenuItem value="web">
+                                    <Box>
+                                        <Typography variant="body1">Web/Local</Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Aplicações web ou desktop padrão
+                                        </Typography>
+                                    </Box>
+                                </MenuItem>
+                                <MenuItem value="sap">
+                                    <Box>
+                                        <Typography variant="body1">SAP/Mainframe</Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Sistemas legados, SAP
+                                        </Typography>
+                                    </Box>
+                                </MenuItem>
+                                <MenuItem value="citrix">
+                                    <Box>
+                                        <Typography variant="body1">Citrix/Remoto</Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Ambientes virtualizados, acesso remoto
+                                        </Typography>
+                                    </Box>
+                                </MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <TextField
+                            fullWidth
+                            label="Número de Passos/Regras"
+                            type="number"
+                            value={data.numSteps}
+                            onChange={(e) => handleChange('numSteps', e.target.value)}
+                            required
+                            InputProps={{
+                                startAdornment: <AccountTree color="action" sx={{ mr: 1 }} />,
+                            }}
+                            helperText="Quantos passos ou regras de negócio o processo possui?"
+                        />
+                    </Grid>
+                </Grid>
+            </Paper>
+
+            <Box
+                sx={{
+                    mt: 3,
+                    p: 2,
+                    backgroundColor: 'info.lighter',
+                    borderLeft: 4,
+                    borderColor: 'info.main',
+                    borderRadius: 1,
+                }}
+            >
+                <Typography variant="body2" color="info.dark">
+                    <strong>Nota:</strong> A complexidade é calculada automaticamente com base
+                    nestes critérios e impacta diretamente no tempo de desenvolvimento e custo
+                    do projeto.
+                </Typography>
+            </Box>
+        </Box>
+    );
+}
+
+
+==================================================================
+ARQUIVO: \frontend\src\components\steps\Step4Review.jsx
+==================================================================
+
+import React from 'react';
+import {
+    Box,
+    Typography,
+    Paper,
+    Grid,
+    Divider,
+    Chip,
+} from '@mui/material';
+import {
+    CheckCircle,
+    Business,
+    TrendingUp,
+    Settings,
+} from '@mui/icons-material';
+
+export default function Step4Review({ data }) {
+    const formatCurrency = (value) => {
+        return new Intl.NumberFormat('pt-BR', {
+            style: 'currency',
+            currency: 'BRL',
+        }).format(value);
+    };
+
+    const getComplexityLabel = () => {
+        let points = 0;
+
+        if (data.complexity.numApplications <= 2) points += 1;
+        else if (data.complexity.numApplications <= 4) points += 2;
+        else points += 3;
+
+        if (data.complexity.dataType === 'structured') points += 1;
+        else if (data.complexity.dataType === 'text') points += 2;
+        else points += 5;
+
+        if (data.complexity.environment === 'web') points += 1;
+        else if (data.complexity.environment === 'sap') points += 2;
+        else points += 4;
+
+        if (data.complexity.numSteps < 20) points += 1;
+        else if (data.complexity.numSteps <= 50) points += 3;
+        else points += 5;
+
+        if (points >= 12) return { level: 'ALTA', color: 'error' };
+        if (points >= 7) return { level: 'MÉDIA', color: 'warning' };
+        return { level: 'BAIXA', color: 'success' };
+    };
+
+    const complexity = getComplexityLabel();
+
+    const dataTypeLabels = {
+        structured: 'Estruturados (Excel, CSV)',
+        text: 'Texto/E-mail',
+        ocr: 'Imagem/OCR',
+    };
+
+    const environmentLabels = {
+        web: 'Web/Local',
+        sap: 'SAP/Mainframe',
+        citrix: 'Citrix/Remoto',
+    };
+
+    return (
+        <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                <CheckCircle sx={{ fontSize: 40, color: 'success.main', mr: 2 }} />
+                <Box>
+                    <Typography variant="h5" fontWeight={600}>
+                        Revisão dos Dados
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Confira as informações antes de calcular o ROI
+                    </Typography>
+                </Box>
+            </Box>
+
+            {/* Informações do Projeto */}
+            <Paper
+                elevation={0}
+                sx={{
+                    p: 3,
+                    mb: 2,
+                    backgroundColor: 'grey.50',
+                    borderRadius: 2,
+                }}
+            >
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Business color="primary" sx={{ mr: 1 }} />
+                    <Typography variant="h6" fontWeight={600}>
+                        Informações do Projeto
+                    </Typography>
+                </Box>
+                <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                        <Typography variant="caption" color="text.secondary">
+                            Nome do Projeto
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.projectName}
+                        </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <Typography variant="caption" color="text.secondary">
+                            Responsável
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.ownerUid || 'Não informado'}
+                        </Typography>
+                    </Grid>
+                </Grid>
+            </Paper>
+
+            {/* Cenário AS-IS */}
+            <Paper
+                elevation={0}
+                sx={{
+                    p: 3,
+                    mb: 2,
+                    backgroundColor: 'grey.50',
+                    borderRadius: 2,
+                }}
+            >
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <TrendingUp color="primary" sx={{ mr: 1 }} />
+                    <Typography variant="h6" fontWeight={600}>
+                        Cenário AS-IS (Atual)
+                    </Typography>
+                </Box>
+                <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">
+                            Volume Mensal
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {parseFloat(data.inputs.volume).toLocaleString('pt-BR')} transações
+                        </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">
+                            AHT
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.inputs.aht} minutos
+                        </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">
+                            Custo FTE
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {formatCurrency(data.inputs.fteCost)}/mês
+                        </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">
+                            Taxa de Erro
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.inputs.errorRate}%
+                        </Typography>
+                    </Grid>
+                </Grid>
+            </Paper>
+
+            {/* Complexidade */}
+            <Paper
+                elevation={0}
+                sx={{
+                    p: 3,
+                    backgroundColor: 'grey.50',
+                    borderRadius: 2,
+                }}
+            >
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Settings color="primary" sx={{ mr: 1 }} />
+                    <Typography variant="h6" fontWeight={600} sx={{ flex: 1 }}>
+                        Análise de Complexidade
+                    </Typography>
+                    <Chip
+                        label={`Complexidade: ${complexity.level}`}
+                        color={complexity.color}
+                        sx={{ fontWeight: 600 }}
+                    />
+                </Box>
+                <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">
+                            Nº de Aplicações
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.complexity.numApplications}
+                        </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">
+                            Tipo de Dados
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {dataTypeLabels[data.complexity.dataType]}
+                        </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">
+                            Ambiente
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {environmentLabels[data.complexity.environment]}
+                        </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">
+                            Nº de Passos
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.complexity.numSteps}
+                        </Typography>
+                    </Grid>
+                </Grid>
+            </Paper>
+
+            <Box
+                sx={{
+                    mt: 3,
+                    p: 2,
+                    backgroundColor: 'success.lighter',
+                    borderLeft: 4,
+                    borderColor: 'success.main',
+                    borderRadius: 1,
+                }}
+            >
+                <Typography variant="body2" color="success.dark">
+                    <strong>Tudo pronto!</strong> Clique em "Calcular ROI" para processar os dados
+                    e visualizar os resultados financeiros da automação.
+                </Typography>
+            </Box>
+        </Box>
+    );
+}
+
+
+==================================================================
+ARQUIVO: \frontend\src\config\firebase.js
+==================================================================
+
+import { initializeApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+
+const firebaseConfig = {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+};
+
+// Inicializar Firebase
+const app = initializeApp(firebaseConfig);
+
+// Serviços
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+
+export default app;
+
+
+==================================================================
+ARQUIVO: \frontend\src\main.jsx
+==================================================================
+
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.jsx';
+import './config/firebase.js';
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+    <React.StrictMode>
+        <App />
+    </React.StrictMode>
+);
+
+
+==================================================================
+ARQUIVO: \frontend\src\services\api.js
+==================================================================
+
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+const api = axios.create({
+    baseURL: `${API_URL}/api`,
+    headers: {
+        'Content-Type': 'application/json',
+    },
+    timeout: 30000, // 30 segundos
+});
+
+/**
+ * Serviço de API para projetos
+ */
+export const projectService = {
+    /**
+     * Cria um novo projeto
+     */
+    async createProject(data) {
+        const response = await api.post('/projects', data);
+        return response.data;
+    },
+
+    /**
+     * Busca um projeto por ID
+     */
+    async getProject(id) {
+        const response = await api.get(`/projects/${id}`);
+        return response.data;
+    },
+
+    /**
+     * Lista projetos de um usuário
+     */
+    async listProjects(ownerUid) {
+        const response = await api.get('/projects', {
+            params: { ownerUid },
+        });
+        return response.data;
+    },
+
+    /**
+     * Atualiza um projeto
+     */
+    async updateProject(id, data) {
+        const response = await api.put(`/projects/${id}`, data);
+        return response.data;
+    },
+
+    /**
+     * Deleta um projeto
+     */
+    async deleteProject(id) {
+        const response = await api.delete(`/projects/${id}`);
+        return response.data;
+    },
+};
+
+/**
+ * Serviço de API para configurações
+ */
+export const settingsService = {
+    /**
+     * Busca configurações globais
+     */
+    async getSettings() {
+        const response = await api.get('/settings');
+        return response.data;
+    },
+
+    /**
+     * Atualiza configurações globais
+     */
+    async updateSettings(data) {
+        const response = await api.put('/settings', data);
+        return response.data;
+    },
+};
+
+/**
+ * Health check
+ */
+export const healthCheck = async () => {
+    const response = await api.get('/health');
+    return response.data;
+};
+
+export default api;
+
+
+==================================================================
+ARQUIVO: \frontend\vite.config.js
+==================================================================
+
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig({
+    plugins: [
+        react(),
+        VitePWA({
+            registerType: 'autoUpdate',
+            includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
+            manifest: {
+                name: 'RPA ROI Navigator',
+                short_name: 'ROI Navigator',
+                description: 'Calculadora de ROI para Automações RPA',
+                theme_color: '#1976d2',
+                background_color: '#ffffff',
+                display: 'standalone',
+                icons: [
+                    {
+                        src: 'pwa-192x192.png',
+                        sizes: '192x192',
+                        type: 'image/png',
+                    },
+                    {
+                        src: 'pwa-512x512.png',
+                        sizes: '512x512',
+                        type: 'image/png',
+                    },
+                    {
+                        src: 'pwa-512x512.png',
+                        sizes: '512x512',
+                        type: 'image/png',
+                        purpose: 'any maskable',
+                    },
+                ],
+            },
+            workbox: {
+                globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+                runtimeCaching: [
+                    {
+                        urlPattern: /^https:\/\/firestore\.googleapis\.com\/.*/i,
+                        handler: 'NetworkFirst',
+                        options: {
+                            cacheName: 'firestore-cache',
+                            expiration: {
+                                maxEntries: 10,
+                                maxAgeSeconds: 60 * 60 * 24, // 24 horas
+                            },
+                        },
+                    },
+                ],
+            },
+        }),
+    ],
+    server: {
+        port: 5173,
+        open: true,
+    },
+    build: {
+        outDir: 'dist',
+        sourcemap: false,
+    },
+});
+
+
+==================================================================
+ARQUIVO: \git-init.js
+==================================================================
+
+const { execSync } = require('child_process');
+const readline = require('readline');
+
+// Configuração para ler entrada do usuário no terminal
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+// Cores para o terminal (Melhora a visualização)
+const colors = {
+  reset: "\x1b[0m",
+  green: "\x1b[32m",
+  yellow: "\x1b[33m",
+  cyan: "\x1b[36m",
+  red: "\x1b[31m"
+};
+
+console.log(`${colors.cyan}--- Script de Inicialização Git Automática ---${colors.reset}`);
+console.log('Este script executará: init, add, commit, branch main, remote add e push.');
+console.log('Modo de uso: node setup-git.js [URL_DO_REPO] ou apenas node setup-git.js para interativo.\n');
+
+// Função auxiliar para rodar comandos
+const runCommand = (command) => {
+  try {
+    // stdio: 'inherit' permite que você veja a saída do git (cores, progresso) no seu terminal
+    execSync(command, { stdio: 'inherit' });
+    return true;
+  } catch (error) {
+    console.error(`${colors.red}Erro ao executar: ${command}${colors.reset}`);
+    return false;
+  }
+};
+
+const executeGitSequence = (remoteUrl) => {
+    if (!remoteUrl || !remoteUrl.trim()) {
+      console.log(`${colors.red}URL inválida ou vazia. Operação cancelada.${colors.reset}`);
+      rl.close();
+      return;
+    }
+
+    const url = remoteUrl.trim();
+
+    console.log(`\n${colors.green}1. Inicializando repositório Git...${colors.reset}`);
+    if (!runCommand('git init')) return rl.close();
+
+    console.log(`\n${colors.green}2. Adicionando todos os arquivos...${colors.reset}`);
+    if (!runCommand('git add .')) return rl.close();
+
+    console.log(`\n${colors.green}3. Criando commit inicial...${colors.reset}`);
+    // Tenta commitar. Se não houver mudanças (repo já existente), apenas avisa.
+    try {
+        execSync('git commit -m "Initial commit - Projeto Uma Casa Boa Pra Cachorro"', { stdio: 'inherit' });
+    } catch (e) {
+        console.log(`${colors.yellow}Aviso: Talvez não haja nada novo para commitar.${colors.reset}`);
+    }
+
+    console.log(`\n${colors.green}4. Definindo branch principal como 'main'...${colors.reset}`);
+    runCommand('git branch -M main');
+
+    console.log(`\n${colors.green}5. Configurando repositório remoto...${colors.reset}`);
+    // Remove origin antigo se existir para evitar erro de duplicidade
+    try { execSync('git remote remove origin', { stdio: 'ignore' }); } catch (e) {}
+    
+    if (!runCommand(`git remote add origin ${url}`)) return rl.close();
+
+    console.log(`\n${colors.green}6. Enviando arquivos para o servidor (Push)...${colors.reset}`);
+    if (runCommand('git push -u origin main')) {
+        console.log(`\n${colors.cyan}>>> SUCESSO! Seu projeto está online. <<<${colors.reset}`);
+    } else {
+        console.log(`\n${colors.red}>>> O Push falhou. Verifique se a URL está correta e se você tem permissão.${colors.reset}`);
+    }
+
+    rl.close();
+};
+
+const startSetup = () => {
+  // Verifica se a URL foi passada como argumento (ex: node setup-git.js https://...)
+  // process.argv[0] é o node, [1] é o script, [2] é o primeiro argumento
+  const argUrl = process.argv[2];
+
+  if (argUrl) {
+    console.log(`${colors.yellow}URL detectada via argumento: ${argUrl}${colors.reset}`);
+    executeGitSequence(argUrl);
+  } else {
+    // Caso não tenha argumento, pergunta interativamente
+    rl.question(`${colors.yellow}Cole a URL do repositório remoto (ex: https://github.com/seu-user/repo.git): ${colors.reset}`, (remoteUrl) => {
+        executeGitSequence(remoteUrl);
+    });
+  }
+};
+
+// Inicia o script
+startSetup();
+
+==================================================================
+ARQUIVO: \git-reset.js
+==================================================================
+
+const fs = require('fs');
+const { execSync } = require('child_process');
+const path = require('path');
+
+// CONFIGURAÇÃO: Sua URL do GitHub
+const REMOTE_URL = "https://github.com/gberbert/automation-manager.git";
+const BRANCH_NAME = "master"; // Ou 'main' se preferir
+
+console.log("🚨 INICIANDO LIMPEZA PROFUNDA DO GIT...");
+console.log("⚠️  Isso apagará o histórico de commits para remover segredos expostos.\n");
+
+try {
+    // 1. Apagar a pasta .git (O cérebro do Git)
+    const gitFolder = path.join(__dirname, '.git');
+    if (fs.existsSync(gitFolder)) {
+        console.log("🗑️  Apagando pasta .git antiga...");
+        fs.rmSync(gitFolder, { recursive: true, force: true });
+    } else {
+        console.log("ℹ️  Nenhuma pasta .git encontrada (limpo).");
+    }
+
+    // Função auxiliar para rodar comandos e mostrar output
+    const run = (command) => {
+        console.log(`\n> ${command}`);
+        execSync(command, { stdio: 'inherit' });
+    };
+
+    // 2. Sequência de comandos de Reset
+    run('git init');
+    
+    console.log("📦 Adicionando arquivos (respeitando .gitignore)...");
+    run('git add .');
+    
+    console.log("xkcd Criando novo commit limpo...");
+    run('git commit -m "Reset total: Limpeza de historico e segredos"');
+    
+    console.log(`🌿 Definindo branch principal para '${BRANCH_NAME}'...`);
+    run(`git branch -M ${BRANCH_NAME}`);
+    
+    console.log("🔗 Conectando ao repositório remoto...");
+    run(`git remote add origin ${REMOTE_URL}`);
+    
+    console.log("🚀 Forçando envio (Push Force)...");
+    run(`git push -u origin ${BRANCH_NAME} --force`);
+
+    console.log("\n✅ SUCESSO! Repositório limpo e sincronizado.");
+    console.log("Agora o GitHub reflete exatamente o que está nesta pasta, sem histórico antigo.");
+
+} catch (error) {
+    console.error("\n❌ ERRO FATAL:");
+    console.error(error.message);
+    console.log("\nDica: Verifique se você tem permissão de escrita no repositório ou se o Git está instalado.");
+}
+
+==================================================================
+ARQUIVO: \INDEX.md
+==================================================================
+
+# 📚 Índice Geral - RPA ROI Navigator
+
+Bem-vindo ao **RPA ROI Navigator**! Este é o índice completo de toda a documentação do projeto.
+
+## 🎯 Início Rápido
+
+**Novo no projeto?** Comece aqui:
+
+1. 📖 [SUMMARY.md](SUMMARY.md) - **Leia primeiro!** Resumo executivo completo
+2. 🚀 [NEXT_STEPS.md](NEXT_STEPS.md) - Guia passo a passo para começar
+3. ⚡ [QUICKSTART.md](QUICKSTART.md) - Setup local em minutos
+
+## 📖 Documentação Principal
+
+### Visão Geral
+- [README.md](README.md) - Visão geral do projeto, stack tecnológica e instruções básicas
+- [SUMMARY.md](SUMMARY.md) - Resumo executivo com características, arquitetura e casos de uso
+
+### Setup e Configuração
+- [NEXT_STEPS.md](NEXT_STEPS.md) - Guia detalhado dos próximos passos após criação do projeto
+- [QUICKSTART.md](QUICKSTART.md) - Guia de início rápido para desenvolvimento local
+- [DEPLOY.md](DEPLOY.md) - Guia completo de deploy para produção (Render + Firebase)
+
+### Documentação Técnica
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Arquitetura técnica, modelagem de dados, regras de negócio
+- [API.md](API.md) - Documentação completa da API REST com exemplos
+- [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) - Estrutura de arquivos e organização do código
+
+### Exemplos e Testes
+- [EXAMPLES.md](EXAMPLES.md) - Casos de uso reais, testes de API, testes E2E
+
+## 🗂️ Documentação por Tópico
+
+### 🏗️ Arquitetura
+
+**Arquivo**: [ARCHITECTURE.md](ARCHITECTURE.md)
+
+- Visão geral da arquitetura
+- Stack tecnológica detalhada
+- Modelagem de dados (Firestore)
+- Regras de negócio
+- Fórmulas financeiras
+- Fluxo de dados
+- Segurança
+- Performance
+- Roadmap futuro
+
+### 🔌 API REST
+
+**Arquivo**: [API.md](API.md)
+
+- Base URL e autenticação
+- Endpoints completos:
+  - Health check
+  - Projetos (CRUD)
+  - Configurações
+- Request/Response examples
+- Lógica de cálculo
+- Códigos de status
+- Exemplos com cURL e JavaScript
+
+### 🚀 Deploy
+
+**Arquivo**: [DEPLOY.md](DEPLOY.md)
+
+- Configuração do Firebase
+- Deploy do backend (Render Web Service)
+- Deploy do frontend (Render Static Site)
+- Configuração de CORS
+- Regras de segurança do Firestore
+- Checklist completo
+- Troubleshooting
+
+### 📝 Exemplos
+
+**Arquivo**: [EXAMPLES.md](EXAMPLES.md)
+
+- Caso 1: Automação Simples (Complexidade BAIXA)
+- Caso 2: Automação Média (Complexidade MÉDIA)
+- Caso 3: Automação Complexa (Complexidade ALTA)
+- Caso 4: Cenário com ROI Negativo
+- Testes de API (cURL)
+- Testes de Frontend
+- Testes E2E completos
+- Matriz de testes de complexidade
+
+## 📂 Documentação por Componente
+
+### Backend
+
+**Documentação**: [backend/README.md](backend/README.md)
+
+**Arquivos Principais**:
+- `src/server.js` - Entry point, configuração Express
+- `src/config/firebase.js` - Configuração Firebase Admin
+- `src/services/calculationService.js` - Lógica de cálculo de ROI e complexidade
+- `src/services/projectService.js` - CRUD de projetos no Firestore
+- `src/controllers/projectController.js` - Endpoints de projetos
+- `src/controllers/settingsController.js` - Endpoints de configurações
+- `src/routes/index.js` - Definição de rotas
+- `src/scripts/initFirestore.js` - Script de inicialização
+
+**Tecnologias**:
+- Node.js + Express
+- Firebase Admin SDK
+- Helmet, Morgan, CORS
+
+### Frontend
+
+**Documentação**: [frontend/README.md](frontend/README.md)
+
+**Arquivos Principais**:
+- `src/main.jsx` - Entry point React
+- `src/App.jsx` - Componente principal + Tema Material UI
+- `src/config/firebase.js` - Configuração Firebase Client
+- `src/services/api.js` - Cliente HTTP (Axios)
+- `src/components/ROIWizard.jsx` - Wizard multi-step
+- `src/components/ResultsDashboard.jsx` - Dashboard de resultados
+- `src/components/steps/` - Componentes dos 4 steps do wizard
+
+**Tecnologias**:
+- React 18 + Vite
+- Material UI
+- Recharts (gráficos)
+- PWA (Service Worker)
+
+## 🎯 Guias por Objetivo
+
+### Quero começar a desenvolver localmente
+1. [NEXT_STEPS.md](NEXT_STEPS.md) - Siga o passo a passo
+2. [QUICKSTART.md](QUICKSTART.md) - Referência rápida
+
+### Quero entender a arquitetura
+1. [ARCHITECTURE.md](ARCHITECTURE.md) - Arquitetura completa
+2. [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) - Estrutura de arquivos
+
+### Quero integrar com a API
+1. [API.md](API.md) - Documentação completa da API
+2. [EXAMPLES.md](EXAMPLES.md) - Exemplos de uso
+
+### Quero fazer deploy em produção
+1. [DEPLOY.md](DEPLOY.md) - Guia completo de deploy
+2. [ARCHITECTURE.md](ARCHITECTURE.md) - Seção de segurança
+
+### Quero testar a aplicação
+1. [EXAMPLES.md](EXAMPLES.md) - Casos de teste
+2. [QUICKSTART.md](QUICKSTART.md) - Setup local
+
+### Quero customizar a aplicação
+1. [ARCHITECTURE.md](ARCHITECTURE.md) - Entender regras de negócio
+2. [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) - Localizar arquivos
+3. Código-fonte em `backend/src/` e `frontend/src/`
+
+## 📊 Referência Rápida
+
+### Comandos Principais
+
+**Backend**:
+```bash
+cd backend
+npm install                          # Instalar dependências
+npm run dev                          # Desenvolvimento
+npm start                            # Produção
+node src/scripts/initFirestore.js   # Inicializar Firestore
+```
+
+**Frontend**:
+```bash
+cd frontend
+npm install      # Instalar dependências
+npm run dev      # Desenvolvimento
+npm run build    # Build de produção
+npm run preview  # Preview da build
+```
+
+### URLs Importantes
+
+- **Frontend Local**: http://localhost:5173
+- **Backend Local**: http://localhost:5000
+- **API Health Check**: http://localhost:5000/api/health
+- **Firebase Console**: https://console.firebase.google.com
+- **Render Dashboard**: https://dashboard.render.com
+
+### Estrutura de Pastas
+
+```
+rpa-calculator/
+├── backend/          # API Node.js
+│   └── src/
+│       ├── config/
+│       ├── controllers/
+│       ├── services/
+│       ├── routes/
+│       └── scripts/
+└── frontend/         # React PWA
+    └── src/
+        ├── components/
+        ├── config/
+        └── services/
+```
+
+## 🔍 Busca Rápida
+
+### Preciso encontrar...
+
+**Fórmulas de cálculo**:
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Seção "Regras de Negócio"
+- `backend/src/services/calculationService.js`
+
+**Endpoints da API**:
+- [API.md](API.md) - Documentação completa
+- `backend/src/routes/index.js`
+
+**Componentes React**:
+- [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
+- `frontend/src/components/`
+
+**Configuração do Firebase**:
+- [NEXT_STEPS.md](NEXT_STEPS.md) - Passo 1
+- [DEPLOY.md](DEPLOY.md) - Seção Firebase
+
+**Casos de teste**:
+- [EXAMPLES.md](EXAMPLES.md) - Todos os casos
+
+**Instruções de deploy**:
+- [DEPLOY.md](DEPLOY.md) - Guia completo
+
+## 📈 Fluxo de Trabalho Recomendado
+
+### Para Desenvolvedores
+
+1. **Entender o projeto**
+   - Ler [SUMMARY.md](SUMMARY.md)
+   - Ler [ARCHITECTURE.md](ARCHITECTURE.md)
+
+2. **Setup local**
+   - Seguir [NEXT_STEPS.md](NEXT_STEPS.md)
+   - Consultar [QUICKSTART.md](QUICKSTART.md)
+
+3. **Desenvolvimento**
+   - Consultar [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)
+   - Consultar [API.md](API.md)
+
+4. **Testes**
+   - Usar [EXAMPLES.md](EXAMPLES.md)
+
+5. **Deploy**
+   - Seguir [DEPLOY.md](DEPLOY.md)
+
+### Para Gestores/Stakeholders
+
+1. **Visão geral**
+   - Ler [SUMMARY.md](SUMMARY.md)
+
+2. **Casos de uso**
+   - Ler [EXAMPLES.md](EXAMPLES.md) - Seção "Casos de Uso"
+
+3. **Roadmap**
+   - Ler [ARCHITECTURE.md](ARCHITECTURE.md) - Seção "Roadmap Futuro"
+
+## 🆘 Troubleshooting
+
+**Problemas comuns?** Consulte:
+
+1. [NEXT_STEPS.md](NEXT_STEPS.md) - Seção "Verificação de Problemas"
+2. [DEPLOY.md](DEPLOY.md) - Seção "Troubleshooting"
+3. [QUICKSTART.md](QUICKSTART.md) - Seção "Problemas Comuns"
+
+## 📞 Suporte
+
+### Recursos Externos
+
+- **Firebase**: https://firebase.google.com/docs
+- **React**: https://react.dev
+- **Material UI**: https://mui.com
+- **Vite**: https://vitejs.dev
+- **Express**: https://expressjs.com
+- **Render**: https://render.com/docs
+
+### Documentação Interna
+
+Todos os arquivos `.md` na raiz do projeto contêm informações detalhadas.
+
+## ✅ Checklist de Leitura
+
+Para novos desenvolvedores:
+
+- [ ] Ler [SUMMARY.md](SUMMARY.md)
+- [ ] Ler [NEXT_STEPS.md](NEXT_STEPS.md)
+- [ ] Seguir [QUICKSTART.md](QUICKSTART.md)
+- [ ] Estudar [ARCHITECTURE.md](ARCHITECTURE.md)
+- [ ] Consultar [API.md](API.md)
+- [ ] Revisar [EXAMPLES.md](EXAMPLES.md)
+- [ ] Preparar [DEPLOY.md](DEPLOY.md)
+
+## 🎉 Conclusão
+
+Esta documentação cobre todos os aspectos do projeto **RPA ROI Navigator**:
+
+✅ Setup e configuração  
+✅ Arquitetura técnica  
+✅ API REST  
+✅ Deploy  
+✅ Exemplos e testes  
+✅ Estrutura do código  
+
+**Comece por**: [NEXT_STEPS.md](NEXT_STEPS.md)
+
+---
+
+**Versão da Documentação**: 1.0.0  
+**Última Atualização**: 2024-01-15  
+**Total de Documentos**: 9 arquivos principais
+
+
+==================================================================
+ARQUIVO: \NEXT_STEPS.md
+==================================================================
+
+# 🚀 Próximos Passos - RPA ROI Navigator
+
+Parabéns! O projeto **RPA ROI Navigator** foi criado com sucesso. Este guia mostrará os próximos passos para colocar a aplicação em funcionamento.
+
+## 📋 Status Atual
+
+✅ **Estrutura do projeto criada**  
+✅ **Backend implementado** (Node.js + Express + Firebase)  
+✅ **Frontend implementado** (React + Material UI + PWA)  
+✅ **Documentação completa**  
+✅ **Pronto para desenvolvimento local**
+
+## 🎯 Próximos Passos Imediatos
+
+### 1. Configurar o Firebase (15 minutos)
+
+#### a) Criar Projeto Firebase
+
+1. Acesse [Firebase Console](https://console.firebase.google.com)
+2. Clique em "Adicionar projeto"
+3. Nome do projeto: `rpa-roi-navigator` (ou outro de sua escolha)
+4. Desabilite Google Analytics (opcional)
+5. Clique em "Criar projeto"
+
+#### b) Habilitar Firestore
+
+1. No menu lateral, clique em "Firestore Database"
+2. Clique em "Criar banco de dados"
+3. Escolha **"Iniciar no modo de produção"**
+4. Selecione a região: **southamerica-east1** (São Paulo)
+5. Clique em "Ativar"
+
+#### c) Obter Credenciais Admin SDK
+
+1. Clique no ícone de engrenagem ⚙️ → "Configurações do projeto"
+2. Vá para a aba "Contas de serviço"
+3. Clique em "Gerar nova chave privada"
+4. Salve o arquivo JSON baixado (você precisará dele)
+
+#### d) Obter Credenciais Client SDK
+
+1. Na mesma tela de configurações
+2. Role até "Seus aplicativos"
+3. Clique no ícone Web `</>`
+4. Registre o app: `RPA ROI Navigator Frontend`
+5. Copie as configurações do Firebase (você precisará delas)
+
+### 2. Instalar Dependências do Backend (5 minutos)
+
+```bash
+cd backend
+npm install
+```
+
+### 3. Configurar Variáveis de Ambiente do Backend
+
+Crie o arquivo `backend/.env` (copie de `.env.example`):
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+Edite `backend/.env` com os dados do Firebase:
+
+```env
+PORT=5000
+NODE_ENV=development
+
+# Dados do arquivo JSON baixado (Admin SDK)
+FIREBASE_PROJECT_ID=seu-projeto-id
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nCole-a-chave-privada-aqui\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@seu-projeto.iam.gserviceaccount.com
+
+ALLOWED_ORIGINS=http://localhost:5173
+```
+
+**⚠️ IMPORTANTE**: 
+- Mantenha os `\n` na `FIREBASE_PRIVATE_KEY`
+- Use aspas duplas ao redor da chave
+
+### 4. Inicializar o Firestore com Dados Padrão
+
+```bash
+cd backend
+node src/scripts/initFirestore.js
+```
+
+Você verá:
+```
+🔥 Inicializando Firestore...
+✅ Configurações globais criadas
+✅ Projeto de exemplo criado
+🎉 Firestore inicializado com sucesso!
+```
+
+### 5. Iniciar o Backend
+
+```bash
+cd backend
+npm run dev
+```
+
+Você verá:
+```
+✅ Firebase Admin initialized successfully
+🚀 Server running on port 5000
+📍 Environment: development
+🌐 CORS enabled for: http://localhost:5173
+```
+
+**Teste**: Abra `http://localhost:5000/api/health` no navegador.
+
+### 6. Instalar Dependências do Frontend (5 minutos)
+
+Abra um **novo terminal**:
+
+```bash
+cd frontend
+npm install
+```
+
+### 7. Configurar Variáveis de Ambiente do Frontend
+
+Crie o arquivo `frontend/.env`:
+
+```bash
+cd frontend
+cp .env.example .env
+```
+
+Edite `frontend/.env` com os dados do Firebase Client SDK:
+
+```env
+VITE_API_URL=http://localhost:5000
+
+# Dados obtidos no passo 1d (Client SDK)
+VITE_FIREBASE_API_KEY=AIzaSy...
+VITE_FIREBASE_AUTH_DOMAIN=seu-projeto.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=seu-projeto-id
+VITE_FIREBASE_STORAGE_BUCKET=seu-projeto.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+VITE_FIREBASE_APP_ID=1:123456789:web:abcdef
+```
+
+### 8. Iniciar o Frontend
+
+```bash
+cd frontend
+npm run dev
+```
+
+Você verá:
+```
+VITE v5.1.0  ready in 500 ms
+
+➜  Local:   http://localhost:5173/
+➜  Network: use --host to expose
+```
+
+### 9. Testar a Aplicação
+
+1. Abra `http://localhost:5173` no navegador
+2. Você verá o wizard de cálculo de ROI
+3. Preencha um projeto de teste:
+   - **Nome**: "Teste - Automação de Faturamento"
+   - **Volume**: 5000
+   - **AHT**: 10
+   - **Custo FTE**: 8000
+   - **Taxa de Erro**: 5%
+   - **Nº Aplicações**: 3
+   - **Tipo de Dados**: Estruturados
+   - **Ambiente**: Web
+   - **Nº Passos**: 25
+4. Clique em "Calcular ROI"
+5. Visualize o dashboard com os resultados
+
+**✅ Se tudo funcionou, parabéns! A aplicação está rodando localmente.**
+
+## 🔍 Verificação de Problemas
+
+### Backend não inicia
+
+**Erro**: `Firebase Admin initialization failed`
+
+**Solução**:
+1. Verifique se o arquivo `.env` está na pasta `backend/`
+2. Confirme que a `FIREBASE_PRIVATE_KEY` está correta
+3. Certifique-se de manter os `\n` na string
+
+### CORS Error
+
+**Erro**: `Access to XMLHttpRequest has been blocked by CORS policy`
+
+**Solução**:
+1. Verifique se `ALLOWED_ORIGINS` no backend inclui `http://localhost:5173`
+2. Reinicie o backend após alterar o `.env`
+
+### Frontend não carrega
+
+**Erro**: `Failed to fetch` ou erro de rede
+
+**Solução**:
+1. Confirme que o backend está rodando em `http://localhost:5000`
+2. Teste `http://localhost:5000/api/health` no navegador
+3. Verifique se `VITE_API_URL` no frontend está correto
+
+## 📚 Próximos Passos Opcionais
+
+### Customização
+
+- [ ] Ajustar taxas padrão no Firestore (coleção `settings`)
+- [ ] Personalizar cores do tema em `frontend/src/App.jsx`
+- [ ] Adicionar logo da empresa
+- [ ] Traduzir textos se necessário
+
+### Desenvolvimento
+
+- [ ] Explorar o código em `backend/src/services/calculationService.js`
+- [ ] Entender a lógica de cálculo
+- [ ] Modificar fórmulas se necessário
+- [ ] Adicionar novos campos ao formulário
+
+### Testes
+
+- [ ] Testar diferentes cenários (ver `EXAMPLES.md`)
+- [ ] Validar cálculos com dados reais
+- [ ] Testar em diferentes navegadores
+- [ ] Testar responsividade mobile
+
+### Deploy
+
+- [ ] Seguir o guia em `DEPLOY.md`
+- [ ] Configurar Render (backend e frontend)
+- [ ] Configurar domínio personalizado
+- [ ] Configurar SSL/HTTPS
+
+## 📖 Documentação de Referência
+
+| Documento | Quando Usar |
+|-----------|-------------|
+| [QUICKSTART.md](QUICKSTART.md) | Setup inicial rápido |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Entender a arquitetura |
+| [API.md](API.md) | Integrar com a API |
+| [DEPLOY.md](DEPLOY.md) | Deploy em produção |
+| [EXAMPLES.md](EXAMPLES.md) | Casos de uso e testes |
+| [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) | Estrutura de arquivos |
+
+## 🆘 Precisa de Ajuda?
+
+### Recursos
+
+1. **Documentação do Projeto**: Leia os arquivos `.md` na raiz
+2. **Firebase Docs**: https://firebase.google.com/docs
+3. **React Docs**: https://react.dev
+4. **Material UI Docs**: https://mui.com
+5. **Vite Docs**: https://vitejs.dev
+
+### Checklist de Troubleshooting
+
+- [ ] Backend está rodando?
+- [ ] Frontend está rodando?
+- [ ] Firestore foi inicializado?
+- [ ] Variáveis de ambiente estão corretas?
+- [ ] Credenciais do Firebase estão válidas?
+- [ ] CORS está configurado corretamente?
+
+## 🎉 Conclusão
+
+Você agora tem uma aplicação completa de cálculo de ROI para automações RPA!
+
+### O que você pode fazer agora:
+
+✅ Criar simulações de ROI  
+✅ Visualizar resultados em dashboard  
+✅ Salvar projetos no Firestore  
+✅ Customizar a aplicação  
+✅ Preparar para deploy em produção  
+
+### Próximos Marcos:
+
+1. ✅ **Desenvolvimento Local** ← Você está aqui
+2. ⏳ **Testes e Validação**
+3. ⏳ **Deploy em Produção**
+4. ⏳ **Treinamento de Usuários**
+5. ⏳ **Feedback e Melhorias**
+
+---
+
+**Boa sorte com o projeto! 🚀**
+
+Se tiver dúvidas, consulte a documentação ou revise os arquivos de código.
+
+**Versão**: 1.0.0  
+**Data**: 2024-01-15
+
+
+==================================================================
+ARQUIVO: \PROJECT_STRUCTURE.md
+==================================================================
+
+# 📁 Estrutura Completa do Projeto
+
+```
+rpa-calculator/
+│
+├── 📄 README.md                    # Visão geral do projeto
+├── 📄 SUMMARY.md                   # Resumo executivo
+├── 📄 QUICKSTART.md                # Guia de início rápido
+├── 📄 ARCHITECTURE.md              # Documentação técnica
+├── 📄 API.md                       # Documentação da API
+├── 📄 DEPLOY.md                    # Guia de deploy
+├── 📄 EXAMPLES.md                  # Casos de uso e testes
+│
+├── 📂 backend/                     # API Node.js + Express
+│   ├── 📄 README.md                # Documentação do backend
+│   ├── 📄 package.json             # Dependências Node.js
+│   ├── 📄 .env.example             # Template de variáveis de ambiente
+│   ├── 📄 .gitignore               # Arquivos ignorados pelo Git
+│   │
+│   └── 📂 src/
+│       ├── 📄 server.js            # Entry point da aplicação
+│       │
+│       ├── 📂 config/
+│       │   └── 📄 firebase.js      # Configuração Firebase Admin
+│       │
+│       ├── 📂 controllers/
+│       │   ├── 📄 projectController.js    # Controller de projetos
+│       │   └── 📄 settingsController.js   # Controller de configurações
+│       │
+│       ├── 📂 services/
+│       │   ├── 📄 calculationService.js   # Lógica de cálculo (ROI, Complexidade)
+│       │   └── 📄 projectService.js       # Serviço de projetos (CRUD)
+│       │
+│       ├── 📂 routes/
+│       │   └── 📄 index.js         # Definição de rotas da API
+│       │
+│       └── 📂 scripts/
+│           └── 📄 initFirestore.js # Script de inicialização do Firestore
+│
+└── 📂 frontend/                    # React PWA
+    ├── 📄 README.md                # Documentação do frontend
+    ├── 📄 package.json             # Dependências React
+    ├── 📄 vite.config.js           # Configuração Vite + PWA
+    ├── 📄 index.html               # HTML principal
+    ├── 📄 .env.example             # Template de variáveis de ambiente
+    ├── 📄 .gitignore               # Arquivos ignorados pelo Git
+    │
+    ├── 📂 public/                  # Assets estáticos
+    │   ├── favicon.ico
+    │   ├── pwa-192x192.png
+    │   └── pwa-512x512.png
+    │
+    └── 📂 src/
+        ├── 📄 main.jsx             # Entry point React
+        ├── 📄 App.jsx              # Componente principal + Tema
+        │
+        ├── 📂 config/
+        │   └── 📄 firebase.js      # Configuração Firebase Client
+        │
+        ├── 📂 services/
+        │   └── 📄 api.js           # Cliente HTTP (Axios)
+        │
+        └── 📂 components/
+            ├── 📄 ROIWizard.jsx    # Wizard principal (multi-step)
+            ├── 📄 ResultsDashboard.jsx  # Dashboard de resultados
+            │
+            └── 📂 steps/
+                ├── 📄 Step1ProjectInfo.jsx    # Step 1: Informações
+                ├── 📄 Step2AsIsInputs.jsx     # Step 2: AS-IS
+                ├── 📄 Step3Complexity.jsx     # Step 3: Complexidade
+                └── 📄 Step4Review.jsx         # Step 4: Revisão
+```
+
+## 📊 Estatísticas do Projeto
+
+### Backend
+- **Arquivos**: 14 arquivos
+- **Linhas de Código**: ~1.500 linhas
+- **Serviços**: 2 (Calculation, Project)
+- **Controllers**: 2 (Project, Settings)
+- **Endpoints**: 7 endpoints REST
+
+### Frontend
+- **Arquivos**: 14 arquivos
+- **Linhas de Código**: ~2.000 linhas
+- **Componentes**: 6 componentes React
+- **Steps do Wizard**: 4 steps
+- **Gráficos**: 3 tipos (Bar, Pie, Line)
+
+### Documentação
+- **Arquivos**: 7 documentos Markdown
+- **Páginas**: ~50 páginas equivalentes
+- **Tópicos**: 
+  - Visão geral
+  - Setup e instalação
+  - Arquitetura técnica
+  - API REST
+  - Deploy
+  - Exemplos e testes
+  - Resumo executivo
+
+## 🎯 Arquivos Principais
+
+### Backend
+
+| Arquivo | Descrição | Linhas |
+|---------|-----------|--------|
+| `server.js` | Entry point, configuração Express | ~80 |
+| `calculationService.js` | Lógica de cálculo de ROI e complexidade | ~350 |
+| `projectService.js` | CRUD de projetos no Firestore | ~150 |
+| `projectController.js` | Endpoints de projetos | ~150 |
+| `settingsController.js` | Endpoints de configurações | ~70 |
+
+### Frontend
+
+| Arquivo | Descrição | Linhas |
+|---------|-----------|--------|
+| `App.jsx` | Componente principal + Tema MUI | ~150 |
+| `ROIWizard.jsx` | Wizard multi-step | ~250 |
+| `ResultsDashboard.jsx` | Dashboard com gráficos | ~400 |
+| `Step2AsIsInputs.jsx` | Formulário AS-IS | ~150 |
+| `Step3Complexity.jsx` | Formulário de complexidade | ~200 |
+
+## 🔧 Tecnologias Utilizadas
+
+### Backend
+```json
+{
+  "express": "^4.18.2",
+  "cors": "^2.8.5",
+  "dotenv": "^16.3.1",
+  "firebase-admin": "^12.0.0",
+  "helmet": "^7.1.0",
+  "morgan": "^1.10.0"
+}
+```
+
+### Frontend
+```json
+{
+  "react": "^18.2.0",
+  "react-dom": "^18.2.0",
+  "@mui/material": "^5.15.10",
+  "@mui/icons-material": "^5.15.10",
+  "axios": "^1.6.7",
+  "firebase": "^10.8.0",
+  "recharts": "^2.12.0",
+  "vite": "^5.1.0",
+  "vite-plugin-pwa": "^0.17.5"
+}
+```
+
+## 📦 Tamanho Estimado
+
+### Desenvolvimento
+- **Backend**: ~15 MB (node_modules)
+- **Frontend**: ~250 MB (node_modules)
+- **Total**: ~265 MB
+
+### Produção (Build)
+- **Backend**: ~5 MB
+- **Frontend**: ~500 KB (comprimido)
+- **Total**: ~5.5 MB
+
+## 🚀 Comandos Principais
+
+### Backend
+```bash
+cd backend
+npm install          # Instalar dependências
+npm run dev          # Desenvolvimento (nodemon)
+npm start            # Produção
+node src/scripts/initFirestore.js  # Inicializar Firestore
+```
+
+### Frontend
+```bash
+cd frontend
+npm install          # Instalar dependências
+npm run dev          # Desenvolvimento (Vite)
+npm run build        # Build de produção
+npm run preview      # Preview da build
+```
+
+## 📚 Documentação Gerada
+
+| Documento | Tamanho | Tópicos |
+|-----------|---------|---------|
+| README.md | ~3 KB | Visão geral, stack, setup |
+| SUMMARY.md | ~8 KB | Resumo executivo completo |
+| QUICKSTART.md | ~5 KB | Guia de início rápido |
+| ARCHITECTURE.md | ~12 KB | Arquitetura técnica detalhada |
+| API.md | ~9 KB | Documentação completa da API |
+| DEPLOY.md | ~7 KB | Guia de deploy passo a passo |
+| EXAMPLES.md | ~10 KB | Casos de uso e testes |
+
+**Total**: ~54 KB de documentação
+
+## ✅ Checklist de Entrega
+
+### Código
+- [x] Backend completo (Express + Firebase)
+- [x] Frontend completo (React + Material UI)
+- [x] Lógica de cálculo implementada
+- [x] Matriz de complexidade implementada
+- [x] Wizard multi-step funcional
+- [x] Dashboard de resultados com gráficos
+- [x] Integração com Firestore
+- [x] PWA configurado
+
+### Documentação
+- [x] README principal
+- [x] Resumo executivo
+- [x] Guia de início rápido
+- [x] Documentação técnica
+- [x] Documentação da API
+- [x] Guia de deploy
+- [x] Exemplos e casos de teste
+
+### Configuração
+- [x] package.json (backend e frontend)
+- [x] .env.example (backend e frontend)
+- [x] .gitignore (backend e frontend)
+- [x] vite.config.js (PWA)
+- [x] Firebase config (Admin e Client)
+
+### Scripts
+- [x] Script de inicialização do Firestore
+- [x] Comandos de desenvolvimento
+- [x] Comandos de build
+
+## 🎉 Status do Projeto
+
+**✅ COMPLETO E PRONTO PARA USO**
+
+- Todos os arquivos criados
+- Toda a lógica implementada
+- Documentação completa
+- Pronto para desenvolvimento local
+- Pronto para deploy em produção
+
+---
+
+**Última Atualização**: 2024-01-15  
+**Versão**: 1.0.0
+
+
+==================================================================
+ARQUIVO: \QUICKSTART.md
+==================================================================
+
+# 🚀 Guia de Início Rápido - RPA ROI Navigator
+
+Este guia ajudará você a executar a aplicação localmente em poucos minutos.
+
+## 📋 Pré-requisitos
+
+- Node.js 18+ instalado ([Download](https://nodejs.org))
+- Conta Firebase ([Criar conta](https://firebase.google.com))
+- Git instalado
+
+## ⚡ Setup Rápido
+
+### 1. Clone o Repositório
+
+```bash
+git clone <seu-repositorio>
+cd rpa-calculator
+```
+
+### 2. Configure o Firebase
+
+1. Acesse o [Console do Firebase](https://console.firebase.google.com)
+2. Crie um novo projeto
+3. Habilite o Firestore Database
+4. Obtenha as credenciais:
+   - **Admin SDK**: Configurações → Contas de serviço → Gerar nova chave privada
+   - **Client SDK**: Configurações → Seus aplicativos → Web
+
+### 3. Configure o Backend
+
+```bash
+cd backend
+npm install
+```
+
+Crie o arquivo `.env` (copie de `.env.example`):
+
+```bash
+cp .env.example .env
+```
+
+Edite `.env` com suas credenciais do Firebase:
+
+```env
+PORT=5000
+NODE_ENV=development
+FIREBASE_PROJECT_ID=seu-projeto-id
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk@seu-projeto.iam.gserviceaccount.com
+ALLOWED_ORIGINS=http://localhost:5173
+```
+
+Inicialize o Firestore com dados padrão:
+
+```bash
+node src/scripts/initFirestore.js
+```
+
+Inicie o servidor:
+
+```bash
+npm run dev
+```
+
+O backend estará rodando em `http://localhost:5000`
+
+### 4. Configure o Frontend
+
+Abra um novo terminal:
+
+```bash
+cd frontend
+npm install
+```
+
+Crie o arquivo `.env`:
+
+```bash
+cp .env.example .env
+```
+
+Edite `.env` com suas credenciais:
+
+```env
+VITE_API_URL=http://localhost:5000
+VITE_FIREBASE_API_KEY=sua-api-key
+VITE_FIREBASE_AUTH_DOMAIN=seu-projeto.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=seu-projeto-id
+VITE_FIREBASE_STORAGE_BUCKET=seu-projeto.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=123456789
+VITE_FIREBASE_APP_ID=1:123456789:web:abcdef
+```
+
+Inicie o dev server:
+
+```bash
+npm run dev
+```
+
+O frontend estará rodando em `http://localhost:5173`
+
+## ✅ Verificação
+
+1. Acesse `http://localhost:5173`
+2. Você verá o wizard de cálculo de ROI
+3. Preencha os dados de um projeto de exemplo
+4. Clique em "Calcular ROI"
+5. Visualize o dashboard com os resultados
+
+## 🎯 Próximos Passos
+
+- [ ] Explore o código em `backend/src/services/calculationService.js` para entender a lógica de cálculo
+- [ ] Customize o tema em `frontend/src/App.jsx`
+- [ ] Ajuste as taxas padrão no Firestore (coleção `settings`)
+- [ ] Leia a documentação completa em `API.md`
+- [ ] Prepare o deploy seguindo `DEPLOY.md`
+
+## 🐛 Problemas Comuns
+
+### Backend não inicia
+
+**Erro**: `Firebase Admin initialization failed`
+
+**Solução**: Verifique se a `FIREBASE_PRIVATE_KEY` está correta. Certifique-se de manter os `\n` na string.
+
+### CORS Error no Frontend
+
+**Erro**: `Access to XMLHttpRequest has been blocked by CORS policy`
+
+**Solução**: Verifique se `ALLOWED_ORIGINS` no backend inclui `http://localhost:5173`
+
+### Firestore Permission Denied
+
+**Erro**: `Missing or insufficient permissions`
+
+**Solução**: 
+1. Vá no Console do Firebase → Firestore → Regras
+2. Configure as regras para permitir leitura/escrita em desenvolvimento:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true; // Apenas para desenvolvimento!
+    }
+  }
+}
+```
+
+### Build do Frontend falha
+
+**Erro**: `Module not found` ou `Cannot find module`
+
+**Solução**: 
+```bash
+cd frontend
+rm -rf node_modules package-lock.json
+npm install
+```
+
+## 📚 Documentação
+
+- [README.md](README.md) - Visão geral do projeto
+- [API.md](API.md) - Documentação completa da API
+- [DEPLOY.md](DEPLOY.md) - Guia de deploy para produção
+- [backend/README.md](backend/README.md) - Documentação do backend
+- [frontend/README.md](frontend/README.md) - Documentação do frontend
+
+## 🆘 Suporte
+
+Se encontrar problemas:
+
+1. Verifique os logs do terminal
+2. Consulte a documentação relevante
+3. Revise as configurações do Firebase
+4. Teste as credenciais manualmente
+
+## 🎉 Tudo Funcionando?
+
+Parabéns! Você está pronto para:
+
+- Criar simulações de ROI
+- Customizar a aplicação
+- Preparar o deploy para produção
+
+Boa codificação! 🚀
+
+
+==================================================================
+ARQUIVO: \README.md
+==================================================================
+
+# RPA ROI Navigator
+
+Aplicação PWA corporativa para cálculo e projeção de ROI de automações RPA, focada no setor de energia.
+
+## 🚀 Stack Tecnológica
+
+### Frontend
+- React.js + Vite
+- Material UI (Design Corporativo)
+- PWA Support
+- Firebase SDK
+
+### Backend
+- Node.js + Express
+- Firebase Firestore (NoSQL)
+- Lógica de Cálculo de ROI e Complexidade
+
+### Infraestrutura
+- Deploy: Render (Web Service + Static Site)
+- Database: Firebase Firestore
+
+## 📋 Funcionalidades
+
+- ✅ Wizard de entrada de dados (AS-IS)
+- ✅ Matriz de Complexidade automática (scoring oculto)
+- ✅ Cálculo de ROI, Payback e custos TO-BE
+- ✅ Persistência de projetos no Firestore
+- ✅ Dashboard de resultados com gráficos
+- ✅ Configurações globais centralizadas
+
+## 🏗️ Estrutura do Projeto
+
+```
+rpa-calculator/
+├── backend/          # API Node.js + Express
+├── frontend/         # React PWA
+└── README.md
+```
+
+## 🔧 Configuração
+
+### Backend
+
+1. Entre na pasta backend:
+```bash
+cd backend
+npm install
+```
+
+2. Configure as variáveis de ambiente (`.env`):
+```
+PORT=5000
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_PRIVATE_KEY=your-private-key
+FIREBASE_CLIENT_EMAIL=your-client-email
+```
+
+3. Inicie o servidor:
+```bash
+npm run dev
+```
+
+### Frontend
+
+1. Entre na pasta frontend:
+```bash
+cd frontend
+npm install
+```
+
+2. Configure o Firebase (`.env`):
+```
+VITE_FIREBASE_API_KEY=your-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-auth-domain
+VITE_FIREBASE_PROJECT_ID=your-project-id
+VITE_API_URL=http://localhost:5000
+```
+
+3. Inicie o dev server:
+```bash
+npm run dev
+```
+
+## 📊 Regras de Negócio
+
+### Matriz de Complexidade
+
+**Critérios de Pontuação:**
+- Nº de Aplicações: 1-2 (1pt) | 3-4 (2pts) | 5+ (3pts)
+- Tipo de Dados: Estruturados (1pt) | E-mail/Texto (2pts) | Imagem/OCR (5pts)
+- Ambiente: Web/Local (1pt) | SAP/Mainframe (2pts) | Citrix/Remoto (4pts)
+- Regras/Passos: <20 (1pt) | 20-50 (3pts) | >50 (5pts)
+
+**Classificação:**
+- Baixa (4-6 pts): 80h Dev + 24h Análise
+- Média (7-11 pts): 160h Dev + 48h Análise
+- Alta (12+ pts): 320h Dev + 96h Análise
+
+### Fórmulas Financeiras
+
+- **Custo AS-IS**: (Volume × AHT × 12) × Custo_Minuto_FTE × (1 + TaxaErro)
+- **ROI Ano 1**: ((Custo_AS_IS - Custo_TO_BE) - Custo_Dev_Total) / Custo_Dev_Total × 100
+- **Payback Period**: Meses até economia acumulada cobrir investimento
+
+## 🚢 Deploy
+
+### Backend (Render Web Service)
+1. Conecte o repositório no Render
+2. Configure as variáveis de ambiente
+3. Build Command: `cd backend && npm install`
+4. Start Command: `cd backend && npm start`
+
+### Frontend (Render Static Site)
+1. Build Command: `cd frontend && npm install && npm run build`
+2. Publish Directory: `frontend/dist`
+
+## 📄 Licença
+
+Proprietary - Uso Corporativo
+
+
+==================================================================
+ARQUIVO: \release.js
+==================================================================
+
+import fs from 'fs';
+import { execSync } from 'child_process';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Configuração para ler diretórios em ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const packageJsonPath = path.join(__dirname, 'package.json');
+const versionFilePath = path.join(__dirname, 'src', 'version.js');
+
+// 1. Ler o package.json atual
+const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+const currentVersion = packageJson.version;
+
+// 2. Incrementar a versão (Lógica: Patch 0.0.X)
+let versionParts = currentVersion.split('.').map(Number);
+versionParts[2] += 1; // Incrementa o último número
+const newVersion = versionParts.join('.');
+
+// 3. Atualizar o package.json
+packageJson.version = newVersion;
+fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+
+// 4. Criar/Atualizar o arquivo src/version.js para o App ler
+const versionFileContent = `export const appVersion = "${newVersion}";\n`;
+fs.writeFileSync(versionFilePath, versionFileContent);
+
+console.log(`✅ Versão atualizada: ${currentVersion} -> ${newVersion}`);
+
+// 5. Executar comandos GIT
+try {
+    console.log('📦 Adicionando arquivos ao Git...');
+    execSync('git add .');
+
+    console.log('🔖 Criando commit...');
+    execSync(`git commit -m "versão ${newVersion}"`);
+
+    console.log('🚀 Enviando para o repositório (Push)...');
+    execSync('git push');
+
+    console.log('🎉 Deploy realizado com sucesso!');
+} catch (error) {
+    console.error('❌ Erro ao executar comandos do Git:', error.message);
+}
+
+==================================================================
+ARQUIVO: \SUMMARY.md
+==================================================================
+
+# 📋 Resumo Executivo - RPA ROI Navigator
+
+## 🎯 Visão Geral
+
+O **RPA ROI Navigator** é uma aplicação PWA (Progressive Web App) corporativa desenvolvida para calcular e projetar o retorno sobre investimento (ROI) de automações RPA, focada especificamente no setor de energia e grandes corporações.
+
+## ✨ Características Principais
+
+### 🧮 Cálculo Inteligente de ROI
+- **Matriz de Complexidade Automática**: Sistema de pontuação oculto que classifica automações em BAIXA, MÉDIA ou ALTA complexidade
+- **Fórmulas Financeiras Precisas**: Cálculo de ROI, Payback, economias e custos baseados em dados reais
+- **Projeções Detalhadas**: Análise ano a ano com breakdown completo de custos
+
+### 🎨 Interface Moderna e Intuitiva
+- **Wizard Multi-Step**: Processo guiado em 4 etapas para coleta de dados
+- **Dashboard Executivo**: Visualização rica com KPIs, gráficos interativos e métricas
+- **Design Corporativo**: Material UI com paleta de cores premium e gradientes vibrantes
+- **PWA**: Instalável, funciona offline, experiência nativa
+
+### 🔧 Tecnologia Robusta
+- **Frontend**: React 18 + Vite + Material UI + Recharts
+- **Backend**: Node.js + Express + Firebase Admin SDK
+- **Database**: Firebase Firestore (NoSQL, escalável)
+- **Deploy**: Render (Web Service + Static Site)
+
+## 📊 Funcionalidades Implementadas
+
+### ✅ Wizard de Entrada de Dados
+1. **Informações do Projeto**: Nome e responsável
+2. **Cenário AS-IS**: Volume, AHT, custo FTE, taxa de erro
+3. **Análise de Complexidade**: Aplicações, tipo de dados, ambiente, passos
+4. **Revisão**: Confirmação visual de todos os dados
+
+### ✅ Cálculos Automatizados
+- Custo AS-IS (situação atual manual)
+- Custo de Desenvolvimento (baseado em horas e taxas)
+- Custo TO-BE (operação com automação)
+- ROI Ano 1 (retorno percentual)
+- Payback Period (tempo até recuperar investimento)
+- Economia Mensal e Anual
+
+### ✅ Dashboard de Resultados
+- **KPIs Principais**: ROI, Economia, Payback, Complexidade
+- **Gráfico de Comparação**: Custos AS-IS vs TO-BE
+- **Gráfico de Composição**: Breakdown de custos TO-BE (licenças, infra, manutenção)
+- **Projeção de Payback**: Linha do tempo até break-even
+- **Detalhamento Financeiro**: Tabelas com todos os valores
+
+### ✅ Persistência de Dados
+- Salvamento automático de projetos no Firestore
+- Configurações globais centralizadas
+- Histórico de simulações por usuário
+
+## 🏗️ Arquitetura
+
+```
+Frontend (React PWA)
+    ↓ REST API
+Backend (Express)
+    ↓ Firebase Admin SDK
+Firestore Database
+```
+
+### Coleções Firestore
+
+**settings/global_config**
+- Taxas horárias (dev, analista)
+- Custos anuais (licenças, infraestrutura)
+- Baselines de horas por complexidade
+
+**projects**
+- Dados de entrada (AS-IS)
+- Critérios de complexidade
+- Resultados calculados
+- Metadados (dono, timestamps)
+
+## 📈 Regras de Negócio
+
+### Matriz de Complexidade
+
+| Critério | Baixo | Médio | Alto |
+|----------|-------|-------|------|
+| **Aplicações** | 1-2 | 3-4 | 5+ |
+| **Dados** | Estruturados | Texto | OCR |
+| **Ambiente** | Web | SAP | Citrix |
+| **Passos** | <20 | 20-50 | >50 |
+
+**Classificação Final:**
+- 4-6 pontos: BAIXA (104h total)
+- 7-11 pontos: MÉDIA (208h total)
+- 12+ pontos: ALTA (416h total)
+
+### Fórmulas Principais
+
+**ROI Ano 1**
+```
+ROI = ((Economia_Anual - Custo_Dev) / Custo_Dev) × 100
+```
+
+**Payback**
+```
+Payback_Meses = Custo_Dev / (Economia_Anual / 12)
+```
+
+## 📦 Estrutura de Arquivos
+
+```
+rpa-calculator/
+├── backend/
+│   ├── src/
+│   │   ├── config/          # Firebase Admin
+│   │   ├── controllers/     # Lógica de requisições
+│   │   ├── services/        # Regras de negócio
+│   │   ├── routes/          # Endpoints da API
+│   │   ├── scripts/         # Utilitários (init Firestore)
+│   │   └── server.js        # Entry point
+│   ├── package.json
+│   └── .env.example
+├── frontend/
+│   ├── src/
+│   │   ├── components/      # React components
+│   │   │   ├── steps/       # Wizard steps
+│   │   │   ├── ROIWizard.jsx
+│   │   │   └── ResultsDashboard.jsx
+│   │   ├── services/        # API client
+│   │   ├── config/          # Firebase Client
+│   │   ├── App.jsx          # Main component
+│   │   └── main.jsx         # Entry point
+│   ├── public/              # Assets estáticos
+│   ├── package.json
+│   ├── vite.config.js       # Vite + PWA config
+│   └── index.html
+├── README.md                # Visão geral
+├── QUICKSTART.md            # Guia de início rápido
+├── ARCHITECTURE.md          # Documentação técnica
+├── API.md                   # Documentação da API
+├── DEPLOY.md                # Guia de deploy
+└── EXAMPLES.md              # Casos de uso e testes
+```
+
+## 🚀 Como Começar
+
+### Desenvolvimento Local
+
+1. **Clone o repositório**
+2. **Configure o Firebase** (Firestore + credenciais)
+3. **Backend**: `cd backend && npm install && npm run dev`
+4. **Frontend**: `cd frontend && npm install && npm run dev`
+5. **Acesse**: `http://localhost:5173`
+
+Consulte [QUICKSTART.md](QUICKSTART.md) para instruções detalhadas.
+
+### Deploy em Produção
+
+1. **Backend**: Render Web Service
+2. **Frontend**: Render Static Site
+3. **Database**: Firebase Firestore
+
+Consulte [DEPLOY.md](DEPLOY.md) para passo a passo completo.
+
+## 📚 Documentação Disponível
+
+| Documento | Descrição |
+|-----------|-----------|
+| [README.md](README.md) | Visão geral e instruções básicas |
+| [QUICKSTART.md](QUICKSTART.md) | Setup local em minutos |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Arquitetura técnica detalhada |
+| [API.md](API.md) | Documentação completa da API REST |
+| [DEPLOY.md](DEPLOY.md) | Guia de deploy para produção |
+| [EXAMPLES.md](EXAMPLES.md) | Casos de uso e testes |
+
+## 🎯 Casos de Uso Reais
+
+### Exemplo 1: Automação Simples
+- **Volume**: 2.000 transações/mês
+- **Complexidade**: BAIXA
+- **ROI**: 313%
+- **Payback**: 2,9 meses
+
+### Exemplo 2: Automação Média
+- **Volume**: 5.000 transações/mês
+- **Complexidade**: MÉDIA
+- **ROI**: 1.797%
+- **Payback**: 0,6 meses (~18 dias)
+
+### Exemplo 3: Automação Complexa
+- **Volume**: 10.000 transações/mês
+- **Complexidade**: ALTA
+- **ROI**: 3.682%
+- **Payback**: 0,3 meses (~9 dias)
+
+Consulte [EXAMPLES.md](EXAMPLES.md) para mais cenários.
+
+## 🔐 Segurança
+
+- ✅ Helmet (Headers de segurança)
+- ✅ CORS configurável
+- ✅ Validação de inputs
+- ✅ Firebase Admin SDK
+- ✅ HTTPS obrigatório em produção
+- ✅ Environment variables para credenciais
+
+## 📈 Roadmap Futuro
+
+### Fase 2: Autenticação
+- Firebase Authentication
+- Login com Google/Microsoft
+- Controle de acesso por usuário
+
+### Fase 3: Colaboração
+- Compartilhamento de projetos
+- Comentários e anotações
+- Histórico de versões
+
+### Fase 4: Analytics
+- Dashboard executivo
+- Comparação de projetos
+- Exportação para Excel/PDF
+
+### Fase 5: IA/ML
+- Sugestões de otimização
+- Previsão de ROI baseada em histórico
+- Detecção de anomalias
+
+## 🎉 Conclusão
+
+O **RPA ROI Navigator** é uma solução completa, moderna e escalável para cálculo de ROI de automações RPA. Com arquitetura robusta, interface intuitiva e cálculos precisos, está pronto para uso em ambientes corporativos de grande porte.
+
+### Principais Benefícios
+
+✅ **Precisão**: Fórmulas financeiras validadas  
+✅ **Velocidade**: Cálculos instantâneos  
+✅ **Usabilidade**: Interface guiada e intuitiva  
+✅ **Escalabilidade**: Arquitetura cloud-native  
+✅ **Manutenibilidade**: Código limpo e documentado  
+
+---
+
+**Versão**: 1.0.0  
+**Status**: ✅ Pronto para Deploy  
+**Licença**: Proprietary - Uso Corporativo
+
+Para suporte ou dúvidas, consulte a documentação técnica ou entre em contato com a equipe de desenvolvimento.
