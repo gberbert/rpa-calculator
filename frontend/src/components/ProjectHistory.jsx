@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { 
   Container, Paper, Typography, Table, TableBody, TableCell, 
-  TableContainer, TableHead, TableRow, Chip, IconButton, Box, CircularProgress, Alert, Button, Badge
+  TableContainer, TableHead, TableRow, Chip, IconButton, Box, CircularProgress, Alert, Button
 } from '@mui/material';
 import { Visibility, Delete, Refresh, SupervisorAccount } from '@mui/icons-material';
 import { projectService } from '../services/api';
@@ -13,21 +13,17 @@ export default function ProjectHistory({ onViewProject }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   
-  // Pegamos o isAdmin do contexto
   const { currentUser, isAdmin } = useAuth();
 
   useEffect(() => {
     loadProjects();
-  }, [currentUser, isAdmin]); // Recarrega se usuário ou status de admin mudar
+  }, [currentUser, isAdmin]);
 
   const loadProjects = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // LÓGICA DE ADMIN:
-      // Se for admin, busca 'all'.
-      // Se não, busca o UID do usuário (ou 'anonymous').
       let targetUid = 'anonymous';
       
       if (isAdmin) {
@@ -65,23 +61,43 @@ export default function ProjectHistory({ onViewProject }) {
 
   return (
     <Container maxWidth="lg">
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+      {/* CABEÇALHO RESPONSIVO CORRIGIDO */}
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', sm: 'row' }, // Coluna no celular, Linha no PC
+          justifyContent: 'space-between', 
+          alignItems: { xs: 'flex-start', sm: 'center' }, // Alinhamento
+          mb: 3,
+          gap: 2 // Espaço entre os elementos
+        }}
+      >
+        <Box>
             <Typography variant="h5" sx={{ fontWeight: 'bold', color: '#1a237e' }}>
-                Histórico de Simulações
+                Histórico
             </Typography>
+            {/* O Chip agora fica embaixo do título no mobile se precisar */}
             {isAdmin && (
                 <Chip 
                     icon={<SupervisorAccount />} 
-                    label="Modo Admin: Visualizando Tudo" 
+                    label="Visão Admin" 
                     color="secondary" 
                     size="small" 
                     variant="outlined"
+                    sx={{ mt: 0.5 }}
                 />
             )}
         </Box>
-        <Button startIcon={<Refresh />} onClick={loadProjects} variant="outlined" size="small">
-            Atualizar
+        
+        {/* Botão Atualizar agora tem largura total no mobile para facilitar o toque */}
+        <Button 
+            startIcon={<Refresh />} 
+            onClick={loadProjects} 
+            variant="outlined" 
+            size="small"
+            sx={{ width: { xs: '100%', sm: 'auto' } }} 
+        >
+            Atualizar Lista
         </Button>
       </Box>
 
@@ -107,11 +123,10 @@ export default function ProjectHistory({ onViewProject }) {
                     projects.map((project) => (
                     <TableRow key={project.id} hover>
                         <TableCell>
-                            {project.project_name}
-                            {/* Se for admin, mostra de quem é o projeto */}
+                            <Typography variant="body2" fontWeight="bold">{project.project_name}</Typography>
                             {isAdmin && project.owner_uid !== currentUser?.uid && (
-                                <Typography variant="caption" display="block" color="text.secondary">
-                                    User ID: {project.owner_uid.slice(0, 8)}...
+                                <Typography variant="caption" display="block" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+                                    ID: {project.owner_uid.slice(0, 8)}...
                                 </Typography>
                             )}
                         </TableCell>
