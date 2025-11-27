@@ -14,9 +14,15 @@ import {
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
+// 1. IMPORTAR O CONTEXTO DE AUTH
+import { useAuth } from '../contexts/AuthContext';
+
 export default function ResultsDashboard({ data, onNewCalculation }) {
     const dashboardRef = useRef(null);
     const [isExporting, setIsExporting] = useState(false);
+    
+    // 2. PEGAR O USUÁRIO LOGADO
+    const { currentUser } = useAuth();
 
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 }).format(value);
@@ -24,6 +30,16 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
 
     const formatNumber = (value) => {
         return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
+    };
+
+    // Lógica para exibir o nome correto do responsável
+    const getResponsibleName = () => {
+        // Se o projeto tem o mesmo ID do usuário logado, mostramos o email dele
+        if (currentUser && data.owner_uid === currentUser.uid) {
+            return currentUser.email;
+        }
+        // Se for um projeto antigo ou de outro usuário (modo admin), mostramos o ID ou um fallback
+        return data.owner_uid || 'Anônimo';
     };
 
     const results = data.results;
@@ -60,7 +76,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
         return 'success';
     };
 
-    // --- FUNÇÃO DE EXPORTAÇÃO PDF (PÁGINA ÚNICA INTELIGENTE) ---
+    // --- FUNÇÃO DE EXPORTAÇÃO PDF ---
     const handleExportPDF = async () => {
         if (!dashboardRef.current) return;
         setIsExporting(true);
@@ -68,35 +84,21 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
         try {
             const element = dashboardRef.current;
             
-            // 1. Captura o elemento visual
             const canvas = await html2canvas(element, {
-                scale: 2, // Alta resolução
+                scale: 2, 
                 useCORS: true,
                 logging: false,
-                backgroundColor: '#ffffff', // Garante fundo branco
+                backgroundColor: '#ffffff',
                 windowWidth: element.scrollWidth,
                 windowHeight: element.scrollHeight
             });
 
             const imgData = canvas.toDataURL('image/png');
-            
-            // 2. Configurações de dimensão (Baseado em largura A4 padrão = 210mm)
             const pdfWidth = 210; 
-            const pxToMm = 25.4 / 96; // Fator de conversão aproximado (apenas referência)
-            
-            // Calcula a altura proporcional em mm baseada na largura fixa de 210mm
-            const imgProps = matchMedia('print');
             const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-
-            // 3. Cria o PDF com altura Personalizada (Smart Height)
-            // 'p' = portrait, 'mm' = milímetros
-            // [pdfWidth, imgHeight] = Tamanho exato da página para caber o conteúdo sem cortes
             const pdf = new jsPDF('p', 'mm', [pdfWidth, imgHeight]);
 
-            // 4. Adiciona a imagem ocupando 100% da página criada
             pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
-
-            // 5. Salva
             pdf.save(`Relatorio_ROI_${data.project_name.replace(/\s+/g, '_')}.pdf`);
 
         } catch (error) {
@@ -114,7 +116,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
                     <Box>
                         <Typography variant="h4" component="h1" gutterBottom fontWeight={700}>Resultados da Análise</Typography>
-                        <Typography variant="body1" sx={{ opacity: 0.9 }}>{data.project_name}</Typography>
+                        <Typography variant="body1" sx={{ opacity: 0.9 }}>Visualização Web</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', gap: 2 }}>
                         <Button
@@ -142,15 +144,40 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
             <div ref={dashboardRef} style={{ backgroundColor: '#f4f6f8', padding: '30px' }}>
                 
                 {/* CABEÇALHO DO RELATÓRIO */}
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 4, borderBottom: '2px solid #1a237e', pb: 2 }}>
-                    <img src="/logo.png" alt="NTT DATA" style={{ height: '40px', marginRight: '15px' }} />
-                    <Box>
-                        <Typography variant="h5" color="primary" fontWeight="bold">Relatório de Viabilidade RPA</Typography>
-                        <Typography variant="caption" color="text.secondary">Gerado em: {new Date().toLocaleDateString()} às {new Date().toLocaleTimeString()}</Typography>
+                <Box 
+                    sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'flex-end', 
+                        mb: 4, 
+                        borderBottom: '2px solid #1a237e', 
+                        pb: 2 
+                    }}
+                >
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <img src="/logo.png" alt="NTT DATA" style={{ height: '40px', marginRight: '15px' }} />
+                        <Box>
+                            <Typography variant="h5" color="primary" fontWeight="bold" sx={{ lineHeight: 1.2 }}>
+                                Relatório de Viabilidade RPA
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                                Gerado em: {new Date().toLocaleDateString()} às {new Date().toLocaleTimeString()}
+                            </Typography>
+                        </Box>
+                    </Box>
+
+                    {/* LADO DIREITO: Nome do Projeto e Responsável CORRIGIDO */}
+                    <Box sx={{ textAlign: 'right' }}>
+                        <Typography variant="h6" fontWeight="bold" color="text.primary" sx={{ lineHeight: 1.2 }}>
+                            {data.project_name}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                            Responsável: {getResponsibleName()}
+                        </Typography>
                     </Box>
                 </Box>
 
-                {/* KPIs Principais */}
+                {/* RESTANTE DO DASHBOARD (Mantido igual) */}
                 <Grid container spacing={3} sx={{ mb: 3 }}>
                     <Grid item xs={12} sm={6} md={3}>
                         <Card sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', height: '100%' }}>
@@ -202,7 +229,6 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                     </Grid>
                 </Grid>
 
-                {/* Gráficos */}
                 <Grid container spacing={3} sx={{ mb: 3 }}>
                     <Grid item xs={12} md={6}>
                         <Paper sx={{ p: 3, borderRadius: 2 }}>
@@ -253,7 +279,6 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                     </Grid>
                 </Grid>
 
-                {/* Detalhamento Financeiro */}
                 <Paper sx={{ p: 3, borderRadius: 2, mb: 4 }}>
                     <Typography variant="h6" fontWeight={600} gutterBottom>Detalhamento Financeiro</Typography>
                     <Divider sx={{ mb: 2 }} />
@@ -297,7 +322,6 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                     </Grid>
                 </Paper>
 
-                {/* METODOLOGIA E MEMÓRIA DE CÁLCULO */}
                 <Paper sx={{ p: 4, borderRadius: 2, backgroundColor: '#fff', borderTop: '4px solid #667eea' }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                         <Description color="primary" sx={{ mr: 1 }} />
@@ -308,7 +332,6 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                     <Divider sx={{ mb: 3 }} />
 
                     <Grid container spacing={4}>
-                        {/* 1. Glossário de Inputs */}
                         <Grid item xs={12} md={6}>
                             <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ color: '#1a237e' }}>
                                 1. Entradas (Inputs)
@@ -335,7 +358,6 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                             </Table>
                         </Grid>
 
-                        {/* 2. Regras de Complexidade */}
                         <Grid item xs={12} md={6}>
                             <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ color: '#1a237e' }}>
                                 2. Matriz de Complexidade
@@ -371,7 +393,6 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                             </Table>
                         </Grid>
 
-                        {/* 3. Fórmulas Financeiras */}
                         <Grid item xs={12}>
                             <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ color: '#1a237e', mt: 2 }}>
                                 3. Fórmulas Utilizadas

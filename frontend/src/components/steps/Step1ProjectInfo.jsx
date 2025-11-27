@@ -1,3 +1,4 @@
+// frontend/src/components/steps/Step1ProjectInfo.jsx
 import React from 'react';
 import {
     Box,
@@ -42,14 +43,16 @@ export default function Step1ProjectInfo({ data, onChange }) {
                     helperText="Dê um nome descritivo para este projeto de automação"
                 />
 
+                {/* CORREÇÃO AQUI: Mudamos de 'ownerUid' para 'responsibleName' */}
                 <TextField
                     fullWidth
                     label="Responsável (Opcional)"
-                    placeholder="Ex: João Silva"
-                    value={data.ownerUid}
-                    onChange={(e) => onChange('ownerUid', e.target.value || 'anonymous')}
+                    placeholder="Ex: João Silva ou seu@email.com"
+                    // Tenta mostrar o nome responsável. Se não existir, string vazia.
+                    value={data.responsibleName || ''} 
+                    onChange={(e) => onChange('responsibleName', e.target.value)}
                     variant="outlined"
-                    helperText="Nome ou ID do responsável pelo projeto"
+                    helperText="Nome ou E-mail do responsável (editável)"
                 />
             </Paper>
 

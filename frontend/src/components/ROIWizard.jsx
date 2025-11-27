@@ -17,15 +17,17 @@ const steps = ['Projeto', 'Cenário', 'Complexidade', 'Revisão'];
 export default function ROIWizard({ onComplete }) {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-    const { currentUser } = useAuth(); // Pega o usuário do contexto
+    const { currentUser } = useAuth(); 
 
     const [activeStep, setActiveStep] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
 
+    // Estado do formulário
     const [formData, setFormData] = useState({
         projectName: '',
-        ownerUid: '', // Começa vazio, preenchemos no useEffect ou submit
+        ownerUid: '', // ID oculto (para o banco)
+        responsibleName: '', // Nome visível (para a tela)
         inputs: {
             volume: '',
             aht: '',
@@ -42,10 +44,15 @@ export default function ROIWizard({ onComplete }) {
         },
     });
 
-    // Atualiza visualmente o ownerUid quando o usuário loga
+    // Preenche o nome visível com o email e guarda o UID escondido
     useEffect(() => {
         if (currentUser) {
-            setFormData(prev => ({ ...prev, ownerUid: currentUser.uid }));
+            setFormData(prev => ({ 
+                ...prev, 
+                ownerUid: currentUser.uid,
+                // Se o campo estiver vazio, sugere o email do usuário logado
+                responsibleName: prev.responsibleName || currentUser.email 
+            }));
         }
     }, [currentUser]);
 
@@ -65,6 +72,7 @@ export default function ROIWizard({ onComplete }) {
         setFormData({
             projectName: '',
             ownerUid: currentUser ? currentUser.uid : '',
+            responsibleName: currentUser ? currentUser.email : '',
             inputs: {
                 volume: '',
                 aht: '',
@@ -87,13 +95,14 @@ export default function ROIWizard({ onComplete }) {
         setError(null);
         
         try {
-            // SEGURANÇA: Força o uso do UID do contexto no momento do envio
-            // Isso previne que o formulário envie 'anonymous' se o estado estava desatualizado
+            // Garante o ID correto no momento do envio
             const finalOwnerUid = currentUser ? currentUser.uid : (formData.ownerUid || 'anonymous');
 
             const payload = {
                 projectName: formData.projectName,
-                ownerUid: finalOwnerUid, // <--- AQUI ESTÁ A CORREÇÃO CRÍTICA
+                ownerUid: finalOwnerUid, 
+                // Opcional: Você pode salvar o responsibleName no banco se quiser exibir depois
+                // responsible_name: formData.responsibleName, 
                 inputs: {
                     volume: parseFloat(formData.inputs.volume) || 0,
                     aht: parseFloat(formData.inputs.aht) || 0,
@@ -114,7 +123,7 @@ export default function ROIWizard({ onComplete }) {
                 throw new Error("Valores de volume, tempo e custo devem ser maiores que zero.");
             }
 
-            console.log("Enviando projeto com Owner UID:", finalOwnerUid); // Log para debug
+            console.log("Enviando projeto...", payload);
 
             const response = await projectService.createProject(payload);
 
