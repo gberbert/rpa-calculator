@@ -1,10 +1,10 @@
 // frontend/src/components/ResultsDashboard.jsx
 import React, { useRef, useState } from 'react';
 import {
-    Box, Typography, Paper, Grid, Card, CardContent, Chip, Divider, Button, Container, Tooltip as MuiTooltip
+    Box, Typography, Paper, Grid, Card, CardContent, Chip, Divider, Button, Container, Tooltip as MuiTooltip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow
 } from '@mui/material';
 import {
-    TrendingUp, AttachMoney, Schedule, Assessment, Refresh, Download, Info
+    TrendingUp, AttachMoney, Schedule, Assessment, Refresh, Download, Info, Description
 } from '@mui/icons-material';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line,
@@ -15,7 +15,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
 export default function ResultsDashboard({ data, onNewCalculation }) {
-    const dashboardRef = useRef(null); // Referência para capturar a tela
+    const dashboardRef = useRef(null);
     const [isExporting, setIsExporting] = useState(false);
 
     const formatCurrency = (value) => {
@@ -28,8 +28,9 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
 
     const results = data.results;
     const complexity = data.complexity_score;
+    const inputs = data.inputs_as_is;
 
-    // Dados gráficos (Mantidos iguais)
+    // Dados gráficos
     const costComparisonData = [
         { name: 'AS-IS (Atual)', Anual: results.as_is_cost_annual, Mensal: results.as_is_cost_annual / 12 },
         { name: 'TO-BE (Automação)', Anual: results.to_be_cost_annual, Mensal: results.to_be_cost_annual / 12 },
@@ -59,7 +60,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
         return 'success';
     };
 
-    // --- FUNÇÃO DE EXPORTAÇÃO PDF ---
+    // --- FUNÇÃO DE EXPORTAÇÃO PDF (PÁGINA ÚNICA INTELIGENTE) ---
     const handleExportPDF = async () => {
         if (!dashboardRef.current) return;
         setIsExporting(true);
@@ -67,44 +68,40 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
         try {
             const element = dashboardRef.current;
             
-            // Captura o elemento em alta resolução
+            // 1. Captura o elemento visual
             const canvas = await html2canvas(element, {
-                scale: 2, // Melhora a qualidade
-                useCORS: true, // Necessário para imagens externas (se houver)
+                scale: 2, // Alta resolução
+                useCORS: true,
                 logging: false,
-                backgroundColor: '#ffffff'
+                backgroundColor: '#ffffff', // Garante fundo branco
+                windowWidth: element.scrollWidth,
+                windowHeight: element.scrollHeight
             });
 
             const imgData = canvas.toDataURL('image/png');
             
-            // Configura PDF A4
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
+            // 2. Configurações de dimensão (Baseado em largura A4 padrão = 210mm)
+            const pdfWidth = 210; 
+            const pxToMm = 25.4 / 96; // Fator de conversão aproximado (apenas referência)
             
-            // Calcula proporção para caber na largura
-            const imgWidth = canvas.width;
-            const imgHeight = canvas.height;
-            const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-            
-            const imgX = (pdfWidth - imgWidth * ratio) / 2;
-            const imgY = 10; // Margem superior
+            // Calcula a altura proporcional em mm baseada na largura fixa de 210mm
+            const imgProps = matchMedia('print');
+            const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
-            // Se a imagem for muito longa, o jsPDF cortaria.
-            // Para dashboards longos, ajustamos para "fit width" e deixamos fluir.
-            // Aqui faremos fit width simples (pode gerar múltiplas páginas em casos avançados, 
-            // mas para este dashboard uma página longa ou fit costuma funcionar bem).
-            
-            // Adiciona a imagem capturada ao PDF
-            // Ajustamos a altura baseada na largura da página A4
-            const finalHeight = (imgHeight * pdfWidth) / imgWidth;
-            
-            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, finalHeight);
+            // 3. Cria o PDF com altura Personalizada (Smart Height)
+            // 'p' = portrait, 'mm' = milímetros
+            // [pdfWidth, imgHeight] = Tamanho exato da página para caber o conteúdo sem cortes
+            const pdf = new jsPDF('p', 'mm', [pdfWidth, imgHeight]);
+
+            // 4. Adiciona a imagem ocupando 100% da página criada
+            pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight);
+
+            // 5. Salva
             pdf.save(`Relatorio_ROI_${data.project_name.replace(/\s+/g, '_')}.pdf`);
 
         } catch (error) {
             console.error("Erro ao gerar PDF:", error);
-            alert("Erro ao gerar o PDF. Verifique o console.");
+            alert("Erro ao gerar o PDF.");
         } finally {
             setIsExporting(false);
         }
@@ -142,15 +139,14 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
             </Paper>
 
             {/* ÁREA DE CAPTURA PARA O PDF */}
-            <div ref={dashboardRef} style={{ backgroundColor: '#f4f6f8', padding: '20px' }}>
+            <div ref={dashboardRef} style={{ backgroundColor: '#f4f6f8', padding: '30px' }}>
                 
-                {/* CABEÇALHO DO RELATÓRIO (LOGO NTT DATA) */}
+                {/* CABEÇALHO DO RELATÓRIO */}
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 4, borderBottom: '2px solid #1a237e', pb: 2 }}>
-                    {/* Substitua '/logo.png' pelo caminho correto do seu logo */}
                     <img src="/logo.png" alt="NTT DATA" style={{ height: '40px', marginRight: '15px' }} />
                     <Box>
                         <Typography variant="h5" color="primary" fontWeight="bold">Relatório de Viabilidade RPA</Typography>
-                        <Typography variant="caption" color="text.secondary">Gerado em: {new Date().toLocaleDateString()}</Typography>
+                        <Typography variant="caption" color="text.secondary">Gerado em: {new Date().toLocaleDateString()} às {new Date().toLocaleTimeString()}</Typography>
                     </Box>
                 </Box>
 
@@ -258,23 +254,15 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                 </Grid>
 
                 {/* Detalhamento Financeiro */}
-                <Paper sx={{ p: 3, borderRadius: 2 }}>
+                <Paper sx={{ p: 3, borderRadius: 2, mb: 4 }}>
                     <Typography variant="h6" fontWeight={600} gutterBottom>Detalhamento Financeiro</Typography>
                     <Divider sx={{ mb: 2 }} />
                     <Grid container spacing={3}>
                         <Grid item xs={12} md={6}>
                             <Typography variant="subtitle2" color="text.secondary" gutterBottom>Investimento Inicial (CAPEX)</Typography>
                             <Box sx={{ pl: 2 }}>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, alignItems: 'center' }}>
-                                    <Box>
-                                        <Typography variant="body2">
-                                            Esforço de Implementação
-                                            <MuiTooltip title="Custo calculado com base na Taxa Média Ponderada da Squad">
-                                                <Info sx={{ fontSize: 14, ml: 0.5, color: 'text.secondary', verticalAlign: 'middle' }}/>
-                                            </MuiTooltip>
-                                        </Typography>
-                                        <Typography variant="caption" color="text.secondary">{complexity.hours.totalHours} horas totais</Typography>
-                                    </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                    <Typography variant="body2">Esforço de Implementação ({complexity.hours.totalHours}h)</Typography>
                                     <Typography variant="body2" fontWeight={600}>{formatCurrency(results.development_cost)}</Typography>
                                 </Box>
                                 <Divider sx={{ my: 1 }} />
@@ -305,6 +293,124 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                     <Typography variant="body1" fontWeight={700} color="primary">{formatCurrency(results.to_be_cost_annual)}</Typography>
                                 </Box>
                             </Box>
+                        </Grid>
+                    </Grid>
+                </Paper>
+
+                {/* METODOLOGIA E MEMÓRIA DE CÁLCULO */}
+                <Paper sx={{ p: 4, borderRadius: 2, backgroundColor: '#fff', borderTop: '4px solid #667eea' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <Description color="primary" sx={{ mr: 1 }} />
+                        <Typography variant="h6" fontWeight="bold" color="primary">
+                            Metodologia e Memória de Cálculo
+                        </Typography>
+                    </Box>
+                    <Divider sx={{ mb: 3 }} />
+
+                    <Grid container spacing={4}>
+                        {/* 1. Glossário de Inputs */}
+                        <Grid item xs={12} md={6}>
+                            <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ color: '#1a237e' }}>
+                                1. Entradas (Inputs)
+                            </Typography>
+                            <Table size="small">
+                                <TableBody>
+                                    <TableRow>
+                                        <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', width: '40%' }}>Volume Mensal</TableCell>
+                                        <TableCell>Quantidade média de transações processadas por mês ({inputs.volume.toLocaleString()}).</TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>AHT (Tempo Médio)</TableCell>
+                                        <TableCell>Average Handle Time: Tempo que um humano leva para processar um item ({inputs.aht} min).</TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>Custo FTE</TableCell>
+                                        <TableCell>Custo mensal total de um funcionário (Full Time Equivalent) incluindo encargos ({formatCurrency(inputs.fte_cost)}).</TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableCell component="th" scope="row" sx={{ fontWeight: 'bold' }}>Taxa de Erro</TableCell>
+                                        <TableCell>Percentual de retrabalho ou erro no processo manual ({inputs.error_rate}%).</TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
+                        </Grid>
+
+                        {/* 2. Regras de Complexidade */}
+                        <Grid item xs={12} md={6}>
+                            <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ color: '#1a237e' }}>
+                                2. Matriz de Complexidade
+                            </Typography>
+                            <Typography variant="body2" paragraph>
+                                A complexidade é calculada somando pontos baseados em: Nº de Aplicações, Tipo de Dados, Ambiente e Nº de Passos.
+                            </Typography>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow sx={{ bgcolor: '#f0f0f0' }}>
+                                        <TableCell sx={{ fontWeight: 'bold' }}>Classificação</TableCell>
+                                        <TableCell sx={{ fontWeight: 'bold' }}>Pontuação</TableCell>
+                                        <TableCell sx={{ fontWeight: 'bold' }}>Horas Estimadas</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    <TableRow selected={complexity.classification === 'LOW'}>
+                                        <TableCell>BAIXA</TableCell>
+                                        <TableCell>4 - 6 pontos</TableCell>
+                                        <TableCell>104h</TableCell>
+                                    </TableRow>
+                                    <TableRow selected={complexity.classification === 'MEDIUM'}>
+                                        <TableCell>MÉDIA</TableCell>
+                                        <TableCell>7 - 11 pontos</TableCell>
+                                        <TableCell>208h</TableCell>
+                                    </TableRow>
+                                    <TableRow selected={complexity.classification === 'HIGH'}>
+                                        <TableCell>ALTA</TableCell>
+                                        <TableCell>12+ pontos</TableCell>
+                                        <TableCell>416h</TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
+                        </Grid>
+
+                        {/* 3. Fórmulas Financeiras */}
+                        <Grid item xs={12}>
+                            <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ color: '#1a237e', mt: 2 }}>
+                                3. Fórmulas Utilizadas
+                            </Typography>
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} md={4}>
+                                    <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f9f9f9' }}>
+                                        <Typography variant="subtitle2" fontWeight="bold" color="primary">Custo AS-IS (Manual)</Typography>
+                                        <Typography variant="caption" display="block" sx={{ mt: 1, fontStyle: 'italic' }}>
+                                            (Volume × AHT × 12) × Custo_Minuto × (1 + Erro)
+                                        </Typography>
+                                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                                            Onde Custo_Minuto = Custo FTE / 9600 min/mês.
+                                        </Typography>
+                                    </Paper>
+                                </Grid>
+                                <Grid item xs={12} md={4}>
+                                    <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f9f9f9' }}>
+                                        <Typography variant="subtitle2" fontWeight="bold" color="primary">Investimento (CAPEX)</Typography>
+                                        <Typography variant="caption" display="block" sx={{ mt: 1, fontStyle: 'italic' }}>
+                                            Horas Totais × Taxa Blended da Squad
+                                        </Typography>
+                                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                                            As horas vêm da matriz de complexidade e a taxa é a média ponderada dos perfis configurados.
+                                        </Typography>
+                                    </Paper>
+                                </Grid>
+                                <Grid item xs={12} md={4}>
+                                    <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f9f9f9' }}>
+                                        <Typography variant="subtitle2" fontWeight="bold" color="primary">Retorno (ROI)</Typography>
+                                        <Typography variant="caption" display="block" sx={{ mt: 1, fontStyle: 'italic' }}>
+                                            ((Economia - Investimento) / Investimento) × 100
+                                        </Typography>
+                                        <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                                            Economia = Custo AS-IS - Custo TO-BE (Licenças + Infra + Manutenção).
+                                        </Typography>
+                                    </Paper>
+                                </Grid>
+                            </Grid>
                         </Grid>
                     </Grid>
                 </Paper>
