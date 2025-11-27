@@ -1,3 +1,4 @@
+// frontend/src/components/steps/Step4Review.jsx
 import React from 'react';
 import {
     Box,
@@ -24,7 +25,6 @@ export default function Step4Review({ data }) {
 
     const getComplexityLabel = () => {
         let points = 0;
-
         if (data.complexity.numApplications <= 2) points += 1;
         else if (data.complexity.numApplications <= 4) points += 2;
         else points += 3;
@@ -104,7 +104,8 @@ export default function Step4Review({ data }) {
                             Responsável
                         </Typography>
                         <Typography variant="body1" fontWeight={500}>
-                            {data.ownerUid || 'Não informado'}
+                            {/* CORREÇÃO AQUI: Mostra responsibleName ou ownerUid como fallback */}
+                            {data.responsibleName || data.ownerUid || 'Não informado'}
                         </Typography>
                     </Grid>
                 </Grid>
