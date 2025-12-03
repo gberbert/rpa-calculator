@@ -1,0 +1,13 @@
+# Dependências
+node_modules/
+*/node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Builds de produção
+dist/
+build/
+
+# Variáveis de ambiente (Segurança!)
+.env
+.DS_Store
