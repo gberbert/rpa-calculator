@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, TextField, Typography, Paper, Grid, InputAdornment, Slider, Tooltip, IconButton } from '@mui/material';
-import { TrendingUp, AccessTime, AttachMoney, ErrorOutline, Info } from '@mui/icons-material';
+import { TrendingUp, AccessTime, AttachMoney, ErrorOutline, Info, HelpOutline } from '@mui/icons-material';
 
 export default function Step2AsIsInputs({ data, onChange }) {
     const handleChange = (field, value) => {
@@ -23,13 +23,22 @@ export default function Step2AsIsInputs({ data, onChange }) {
                     <Grid item xs={12}>
                         <Typography variant="subtitle2" color="primary" gutterBottom>MÉTRICAS DE VOLUMETRIA</Typography>
                     </Grid>
-                    
+
                     <Grid item xs={12} md={6}>
                         <TextField
                             fullWidth label="Volume Mensal Médio" type="number"
                             value={data.volume} onChange={(e) => handleChange('volume', e.target.value)}
                             required
-                            InputProps={{ startAdornment: <InputAdornment position="start"><TrendingUp color="action" /></InputAdornment> }}
+                            InputProps={{
+                                startAdornment: <InputAdornment position="start"><TrendingUp color="action" /></InputAdornment>,
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <Tooltip title="Quantidade média de transações, chamados ou documentos processados mensalmente." arrow placement="top">
+                                            <IconButton edge="end" size="small"><HelpOutline fontSize="small" color="action" /></IconButton>
+                                        </Tooltip>
+                                    </InputAdornment>
+                                )
+                            }}
                             helperText="Total de itens processados por mês em média"
                         />
                     </Grid>
@@ -38,8 +47,17 @@ export default function Step2AsIsInputs({ data, onChange }) {
                             fullWidth label="Pico Sazonal (%)" type="number"
                             placeholder="0"
                             value={data.peakVolume || ''} onChange={(e) => handleChange('peakVolume', e.target.value)}
-                            InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment> }}
-                            helperText="Quanto o volume aumenta em épocas de pico? (Ex: Black Friday)"
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <Typography variant="caption" sx={{ mr: 1 }}>%</Typography>
+                                        <Tooltip title="Percentual de aumento de volume em períodos de pico (ex: Black Friday, Fechamento). Importante para dimensionar a capacidade do robô." arrow placement="top">
+                                            <IconButton edge="end" size="small"><HelpOutline fontSize="small" color="action" /></IconButton>
+                                        </Tooltip>
+                                    </InputAdornment>
+                                )
+                            }}
+                            helperText="Quanto o volume aumenta em épocas de pico?"
                         />
                     </Grid>
 
@@ -53,11 +71,18 @@ export default function Step2AsIsInputs({ data, onChange }) {
                             fullWidth label="TMT (Tempo Médio Tratativa)" type="number"
                             value={data.aht} onChange={(e) => handleChange('aht', e.target.value)}
                             required
-                            InputProps={{ 
+                            InputProps={{
                                 startAdornment: <InputAdornment position="start"><AccessTime color="action" /></InputAdornment>,
-                                endAdornment: <InputAdornment position="end">min</InputAdornment> 
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <Typography variant="caption" sx={{ mr: 1 }}>min</Typography>
+                                        <Tooltip title="Tempo médio que um humano leva para processar um único item do início ao fim." arrow placement="top">
+                                            <IconButton edge="end" size="small"><HelpOutline fontSize="small" color="action" /></IconButton>
+                                        </Tooltip>
+                                    </InputAdornment>
+                                )
                             }}
-                            helperText="Tempo que um humano leva por item"
+                            helperText="Tempo por item (minutos)"
                         />
                     </Grid>
                     <Grid item xs={12} md={4}>
@@ -65,18 +90,34 @@ export default function Step2AsIsInputs({ data, onChange }) {
                             fullWidth label="Custo Mensal FTE (Encargos)" type="number"
                             value={data.fteCost} onChange={(e) => handleChange('fteCost', e.target.value)}
                             required
-                            InputProps={{ 
+                            InputProps={{
                                 startAdornment: <InputAdornment position="start"><AttachMoney color="action" /></InputAdornment>,
-                                endAdornment: <InputAdornment position="end">R$</InputAdornment> 
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <Typography variant="caption" sx={{ mr: 1 }}>R$</Typography>
+                                        <Tooltip title="Custo total mensal de um funcionário (Salário + Encargos + Benefícios + Infraestrutura)." arrow placement="top">
+                                            <IconButton edge="end" size="small"><HelpOutline fontSize="small" color="action" /></IconButton>
+                                        </Tooltip>
+                                    </InputAdornment>
+                                )
                             }}
-                            helperText="Salário + Encargos + Benefícios"
+                            helperText="Custo total do funcionário"
                         />
                     </Grid>
                     <Grid item xs={12} md={4}>
                         <TextField
                             fullWidth label="Crescimento Anual Esperado" type="number"
                             value={data.annualGrowth || ''} onChange={(e) => handleChange('annualGrowth', e.target.value)}
-                            InputProps={{ endAdornment: <InputAdornment position="end">% / ano</InputAdornment> }}
+                            InputProps={{
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <Typography variant="caption" sx={{ mr: 1 }}>%</Typography>
+                                        <Tooltip title="Projeção de crescimento do volume para os próximos anos. O robô absorve esse crescimento sem custo linear." arrow placement="top">
+                                            <IconButton edge="end" size="small"><HelpOutline fontSize="small" color="action" /></IconButton>
+                                        </Tooltip>
+                                    </InputAdornment>
+                                )
+                            }}
                             helperText="Projeção de aumento de demanda"
                         />
                     </Grid>
@@ -86,7 +127,7 @@ export default function Step2AsIsInputs({ data, onChange }) {
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                             <Typography variant="subtitle2" color="primary" sx={{ mr: 1 }}>QUALIDADE E RETRABALHO</Typography>
                             <Tooltip title="O retrabalho afeta diretamente o custo oculto. Automação tende a zerar isso.">
-                                <IconButton size="small"><Info fontSize="small" /></IconButton>
+                                <IconButton size="small"><HelpOutline fontSize="small" color="action" /></IconButton>
                             </Tooltip>
                         </Box>
                     </Grid>
@@ -95,7 +136,12 @@ export default function Step2AsIsInputs({ data, onChange }) {
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                             <ErrorOutline color="action" />
                             <Box sx={{ flex: 1 }}>
-                                <Typography variant="body2" gutterBottom>Taxa de Erro Humano / Retrabalho</Typography>
+                                <Typography variant="body2" gutterBottom>
+                                    Taxa de Erro Humano / Retrabalho
+                                    <Tooltip title="Porcentagem de itens que precisam ser refeitos devido a erros manuais." arrow placement="top">
+                                        <IconButton size="small" sx={{ ml: 1 }}><HelpOutline fontSize="small" fontSize="inherit" color="action" /></IconButton>
+                                    </Tooltip>
+                                </Typography>
                                 <Slider
                                     value={parseFloat(data.errorRate) || 0}
                                     onChange={(e, value) => handleChange('errorRate', value)}

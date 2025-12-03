@@ -1,4 +1,4 @@
-// frontend/src/components/steps/Step4Review.jsx
+// frontend/src/components/steps/Step5Review.jsx
 import React from 'react';
 import {
     Box,
@@ -13,9 +13,10 @@ import {
     Business,
     TrendingUp,
     Settings,
+    Psychology,
 } from '@mui/icons-material';
 
-export default function Step4Review({ data }) {
+export default function Step5Review({ data }) {
     const formatCurrency = (value) => {
         return new Intl.NumberFormat('pt-BR', {
             style: 'currency',
@@ -166,6 +167,7 @@ export default function Step4Review({ data }) {
                 elevation={0}
                 sx={{
                     p: 3,
+                    mb: 2,
                     backgroundColor: 'grey.50',
                     borderRadius: 2,
                 }}
@@ -212,6 +214,53 @@ export default function Step4Review({ data }) {
                         </Typography>
                         <Typography variant="body1" fontWeight={500}>
                             {data.complexity.numSteps}
+                        </Typography>
+                    </Grid>
+                </Grid>
+            </Paper>
+
+            {/* Estratégia & Cognitivo */}
+            <Paper
+                elevation={0}
+                sx={{
+                    p: 3,
+                    backgroundColor: 'grey.50',
+                    borderRadius: 2,
+                }}
+            >
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Psychology color="primary" sx={{ mr: 1 }} />
+                    <Typography variant="h6" fontWeight={600}>
+                        Estratégia & Cognitivo
+                    </Typography>
+                </Box>
+                <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6} md={4}>
+                        <Typography variant="caption" color="text.secondary">
+                            Nível Cognitivo
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.strategic?.cognitiveLevel === 'rule' && 'Regra Fixa'}
+                            {data.strategic?.cognitiveLevel === 'interpretation' && 'Interpretação'}
+                            {data.strategic?.cognitiveLevel === 'creation' && 'Criação (GenAI)'}
+                        </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                        <Typography variant="caption" color="text.secondary">
+                            Variabilidade
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.strategic?.inputVariability === 'never' && 'Baixa'}
+                            {data.strategic?.inputVariability === 'occasionally' && 'Média'}
+                            {data.strategic?.inputVariability === 'always' && 'Alta'}
+                        </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                        <Typography variant="caption" color="text.secondary">
+                            Disponibilidade 24/7
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.strategic?.needs24h ? 'Sim' : 'Não'}
                         </Typography>
                     </Grid>
                 </Grid>

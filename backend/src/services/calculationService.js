@@ -107,7 +107,8 @@ class FinancialService {
         const { volume, aht, fteCost, errorRate = 0 } = inputs;
         // Custo por minuto do FTE (assumindo 160h/mês = 9600min/mês)
         const costPerMinute = fteCost / 9600;
-        // Custo AS-IS Anual
+        // Custo AS-IS Anual (Operacional apenas)
+        // Inclui custo de retrabalho (errorRate)
         const asIsCost = (volume * aht * 12) * costPerMinute * (1 + errorRate / 100);
         return Math.round(asIsCost * 100) / 100;
     }
@@ -143,7 +144,7 @@ class FinancialService {
     /**
      * Calcula todos os indicadores financeiros (Enterprise)
      */
-    async calculateFullROI(inputs, complexity) {
+    async calculateFullROI(inputs, complexity, strategic = {}) {
         // 1. Carregar configurações do banco
         const config = await this.getGlobalRates();
 
@@ -160,8 +161,37 @@ class FinancialService {
         const teamComp = config.team_composition || [{ role: 'Dev', rate: 120, share: 1 }];
         const developmentCost = this.calculateDevelopmentCost(totalHours, teamComp);
 
-        // 4. Custo AS-IS (Atual)
-        const asIsCost = this.calculateAsIsCost(inputs);
+        // 4. Custo AS-IS (Atual) - Base Operacional
+        let asIsCost = this.calculateAsIsCost(inputs);
+
+        // --- Strategic Adjustments to AS-IS ---
+        let riskCost = 0;
+        let turnoverCost = 0;
+
+        // SLA: Se 24/7, multiplica custo operacional por 3 (3 turnos)
+        if (strategic.needs24h) {
+            asIsCost = asIsCost * 3;
+        }
+
+        // Compliance Risk (Custo do Erro)
+        if (strategic.errorCost > 0) {
+            // Volume anual * Taxa de erro * Custo da multa
+            riskCost = (inputs.volume * 12) * (inputs.errorRate / 100) * strategic.errorCost;
+        }
+
+        // Turnover Cost (Soft Savings)
+        if (strategic.turnoverRate > 0) {
+            // Estimativa: 20% do salário anual por contratação/treinamento
+            // FTE Count = (Volume * AHT) / 9600
+            const fteCount = (inputs.volume * inputs.aht) / 9600;
+            // Custo Anual por FTE = fteCost * 12
+            // Custo Turnover = (Custo Anual * 0.2) * (Turnover% / 100) * FTE Count
+            turnoverCost = (inputs.fteCost * 12 * 0.2) * (strategic.turnoverRate / 100) * fteCount;
+        }
+
+        // Adiciona custos estratégicos ao AS-IS total (pois a automação elimina/reduz isso)
+        const totalAsIsCost = asIsCost + riskCost + turnoverCost;
+
 
         // 5. Custo TO-BE (Licenças + Infra + Manutenção)
         // Garante fallback de custos de infra
@@ -171,12 +201,29 @@ class FinancialService {
             database_annual: 0
         };
 
-        const annualInfraCost = Object.values(infraCosts).reduce((a, b) => a + b, 0);
+        let annualInfraCost = Object.values(infraCosts).reduce((a, b) => a + b, 0);
+
+        // --- Strategic Adjustments to TO-BE ---
+        let genAiCost = 0;
+        let idpCost = 0;
+
+        // GenAI Cost
+        if (strategic.cognitiveLevel === 'creation') {
+            // Estimativa: R$ 0.05 por transação (tokens)
+            genAiCost = (inputs.volume * 12) * 0.05;
+        }
+
+        // IDP Cost
+        if (strategic.inputVariability === 'always') {
+            // Licença adicional de IDP (ex: R$ 5.000/ano)
+            idpCost = 5000;
+        }
+
         const maintenanceCost = developmentCost * 0.15; // 15% do dev para sustentação
-        const totalToBeCost = annualInfraCost + maintenanceCost;
+        const totalToBeCost = annualInfraCost + maintenanceCost + genAiCost + idpCost;
 
         // 6. ROI e Payback
-        const annualSavings = asIsCost - totalToBeCost;
+        const annualSavings = totalAsIsCost - totalToBeCost;
         const roi = ((annualSavings - developmentCost) / developmentCost) * 100;
         const monthlySavings = annualSavings / 12;
         const paybackMonths = this.calculatePayback(developmentCost, monthlySavings);
@@ -187,16 +234,28 @@ class FinancialService {
                 classification: complexityScore.classification,
                 hours: { totalHours }
             },
+            strategic: {
+                riskCost,
+                turnoverCost,
+                genAiCost,
+                idpCost,
+                slaMultiplier: strategic.needs24h ? 3 : 1
+            },
             costs: {
                 asIs: {
-                    annual: asIsCost,
-                    monthly: Math.round((asIsCost / 12) * 100) / 100
+                    annual: totalAsIsCost,
+                    operational: asIsCost,
+                    risk: riskCost,
+                    turnover: turnoverCost,
+                    monthly: Math.round((totalAsIsCost / 12) * 100) / 100
                 },
                 development: developmentCost,
                 toBe: {
                     licenseCost: infraCosts.rpa_license_annual,
                     infraCost: infraCosts.virtual_machine_annual + (infraCosts.database_annual || 0),
                     maintenanceCost,
+                    genAiCost,
+                    idpCost,
                     totalToBeCost,
                     annual: totalToBeCost
                 },

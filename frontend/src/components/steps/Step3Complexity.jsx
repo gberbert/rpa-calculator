@@ -4,12 +4,12 @@ import {
     Typography,
     Paper,
     Grid,
-    FormControl,
-    InputLabel,
-    Select,
-    MenuItem,
     TextField,
+    MenuItem,
     Chip,
+    InputAdornment,
+    Tooltip,
+    IconButton
 } from '@mui/material';
 import {
     Settings,
@@ -17,6 +17,7 @@ import {
     Storage,
     Cloud,
     AccountTree,
+    HelpOutline
 } from '@mui/icons-material';
 
 export default function Step3Complexity({ data, onChange }) {
@@ -94,84 +95,113 @@ export default function Step3Complexity({ data, onChange }) {
                             onChange={(e) => handleChange('numApplications', e.target.value)}
                             required
                             InputProps={{
-                                startAdornment: <Apps color="action" sx={{ mr: 1 }} />,
+                                startAdornment: <InputAdornment position="start"><Apps color="action" /></InputAdornment>,
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <Tooltip title="Número de sistemas distintos que o robô precisará acessar (Ex: SAP, Excel, Site Web = 3)." arrow placement="top">
+                                            <IconButton edge="end" size="small"><HelpOutline fontSize="small" color="action" /></IconButton>
+                                        </Tooltip>
+                                    </InputAdornment>
+                                )
                             }}
                             helperText="Quantos sistemas diferentes o robô irá integrar?"
                         />
                     </Grid>
 
                     <Grid item xs={12} md={6}>
-                        <FormControl fullWidth required>
-                            <InputLabel>Tipo de Dados</InputLabel>
-                            <Select
-                                value={data.dataType}
-                                onChange={(e) => handleChange('dataType', e.target.value)}
-                                label="Tipo de Dados"
-                                startAdornment={<Storage color="action" sx={{ ml: 1, mr: 1 }} />}
-                            >
-                                <MenuItem value="structured">
-                                    <Box>
-                                        <Typography variant="body1">Estruturados</Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Excel, CSV, Banco de Dados
-                                        </Typography>
-                                    </Box>
-                                </MenuItem>
-                                <MenuItem value="text">
-                                    <Box>
-                                        <Typography variant="body1">Texto/E-mail</Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Processamento de texto, e-mails
-                                        </Typography>
-                                    </Box>
-                                </MenuItem>
-                                <MenuItem value="ocr">
-                                    <Box>
-                                        <Typography variant="body1">Imagem/OCR</Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Reconhecimento de caracteres, PDFs escaneados
-                                        </Typography>
-                                    </Box>
-                                </MenuItem>
-                            </Select>
-                        </FormControl>
+                        <TextField
+                            select
+                            fullWidth
+                            label="Tipo de Dados"
+                            value={data.dataType}
+                            onChange={(e) => handleChange('dataType', e.target.value)}
+                            required
+                            InputProps={{
+                                startAdornment: <InputAdornment position="start"><Storage color="action" /></InputAdornment>,
+                                endAdornment: (
+                                    <InputAdornment position="end" sx={{ mr: 2 }}>
+                                        <Tooltip title="Formato dos dados de entrada. Dados estruturados (Excel) são mais fáceis. Imagens (OCR) são mais complexas." arrow placement="top">
+                                            <IconButton size="small" onMouseDown={(e) => e.stopPropagation()}>
+                                                <HelpOutline fontSize="small" color="action" />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </InputAdornment>
+                                )
+                            }}
+                        >
+                            <MenuItem value="structured">
+                                <Box>
+                                    <Typography variant="body1">Estruturados</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Excel, CSV, Banco de Dados
+                                    </Typography>
+                                </Box>
+                            </MenuItem>
+                            <MenuItem value="text">
+                                <Box>
+                                    <Typography variant="body1">Texto/E-mail</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Processamento de texto, e-mails
+                                    </Typography>
+                                </Box>
+                            </MenuItem>
+                            <MenuItem value="ocr">
+                                <Box>
+                                    <Typography variant="body1">Imagem/OCR</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Reconhecimento de caracteres, PDFs escaneados
+                                    </Typography>
+                                </Box>
+                            </MenuItem>
+                        </TextField>
                     </Grid>
 
                     <Grid item xs={12} md={6}>
-                        <FormControl fullWidth required>
-                            <InputLabel>Ambiente</InputLabel>
-                            <Select
-                                value={data.environment}
-                                onChange={(e) => handleChange('environment', e.target.value)}
-                                label="Ambiente"
-                                startAdornment={<Cloud color="action" sx={{ ml: 1, mr: 1 }} />}
-                            >
-                                <MenuItem value="web">
-                                    <Box>
-                                        <Typography variant="body1">Web/Local</Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Aplicações web ou desktop padrão
-                                        </Typography>
-                                    </Box>
-                                </MenuItem>
-                                <MenuItem value="sap">
-                                    <Box>
-                                        <Typography variant="body1">SAP/Mainframe</Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Sistemas legados, SAP
-                                        </Typography>
-                                    </Box>
-                                </MenuItem>
-                                <MenuItem value="citrix">
-                                    <Box>
-                                        <Typography variant="body1">Citrix/Remoto</Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Ambientes virtualizados, acesso remoto
-                                        </Typography>
-                                    </Box>
-                                </MenuItem>
-                            </Select>
-                        </FormControl>
+                        <TextField
+                            select
+                            fullWidth
+                            label="Ambiente"
+                            value={data.environment}
+                            onChange={(e) => handleChange('environment', e.target.value)}
+                            required
+                            InputProps={{
+                                startAdornment: <InputAdornment position="start"><Cloud color="action" /></InputAdornment>,
+                                endAdornment: (
+                                    <InputAdornment position="end" sx={{ mr: 2 }}>
+                                        <Tooltip title="Onde o robô irá rodar. Ambientes Citrix/Remotos são mais instáveis e complexos de automatizar." arrow placement="top">
+                                            <IconButton size="small" onMouseDown={(e) => e.stopPropagation()}>
+                                                <HelpOutline fontSize="small" color="action" />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </InputAdornment>
+                                )
+                            }}
+                        >
+                            <MenuItem value="web">
+                                <Box>
+                                    <Typography variant="body1">Web/Local</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Aplicações web ou desktop padrão
+                                    </Typography>
+                                </Box>
+                            </MenuItem>
+                            <MenuItem value="sap">
+                                <Box>
+                                    <Typography variant="body1">SAP/Mainframe</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Sistemas legados, SAP
+                                    </Typography>
+                                </Box>
+                            </MenuItem>
+                            <MenuItem value="citrix">
+                                <Box>
+                                    <Typography variant="body1">Citrix/Remoto</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        Ambientes virtualizados, acesso remoto
+                                    </Typography>
+                                </Box>
+                            </MenuItem>
+                        </TextField>
                     </Grid>
 
                     <Grid item xs={12} md={6}>
@@ -183,7 +213,14 @@ export default function Step3Complexity({ data, onChange }) {
                             onChange={(e) => handleChange('numSteps', e.target.value)}
                             required
                             InputProps={{
-                                startAdornment: <AccountTree color="action" sx={{ mr: 1 }} />,
+                                startAdornment: <InputAdornment position="start"><AccountTree color="action" /></InputAdornment>,
+                                endAdornment: (
+                                    <InputAdornment position="end">
+                                        <Tooltip title="Quantidade aproximada de ações (cliques, digitações) ou regras de decisão no processo." arrow placement="top">
+                                            <IconButton edge="end" size="small"><HelpOutline fontSize="small" color="action" /></IconButton>
+                                        </Tooltip>
+                                    </InputAdornment>
+                                )
                             }}
                             helperText="Quantos passos ou regras de negócio o processo possui?"
                         />

@@ -10,8 +10,8 @@ class ProjectService {
 
     async createProject(projectData) {
         try {
-            const { projectName, ownerUid, inputs, complexity } = projectData;
-            const results = await this.financialService.calculateFullROI(inputs, complexity);
+            const { projectName, ownerUid, inputs, complexity, strategic } = projectData;
+            const results = await this.financialService.calculateFullROI(inputs, complexity, strategic);
 
             const project = {
                 project_name: projectName,
@@ -25,11 +25,13 @@ class ProjectService {
                     error_rate: inputs.errorRate || 0,
                 },
                 complexity_input: complexity,
+                strategic_input: strategic || {},
                 complexity_score: {
                     total_points: results.complexity.score,
                     classification: results.complexity.classification,
                     hours: results.complexity.hours,
                 },
+                strategic_analysis: results.strategic || {},
                 results: {
                     development_cost: results.costs.development,
                     as_is_cost_annual: results.costs.asIs.annual,

@@ -5,8 +5,11 @@ import {
     TextField,
     Typography,
     Paper,
+    InputAdornment,
+    Tooltip,
+    IconButton
 } from '@mui/material';
-import { Business } from '@mui/icons-material';
+import { Business, HelpOutline } from '@mui/icons-material';
 
 export default function Step1ProjectInfo({ data, onChange }) {
     return (
@@ -41,18 +44,38 @@ export default function Step1ProjectInfo({ data, onChange }) {
                     variant="outlined"
                     sx={{ mb: 3 }}
                     helperText="Dê um nome descritivo para este projeto de automação"
+                    InputProps={{
+                        endAdornment: (
+                            <InputAdornment position="end">
+                                <Tooltip title="Nome único para identificar este projeto nos relatórios e dashboard." arrow placement="top">
+                                    <IconButton edge="end" size="small">
+                                        <HelpOutline fontSize="small" color="action" />
+                                    </IconButton>
+                                </Tooltip>
+                            </InputAdornment>
+                        )
+                    }}
                 />
 
-                {/* CORREÇÃO AQUI: Mudamos de 'ownerUid' para 'responsibleName' */}
                 <TextField
                     fullWidth
                     label="Responsável (Opcional)"
                     placeholder="Ex: João Silva ou seu@email.com"
-                    // Tenta mostrar o nome responsável. Se não existir, string vazia.
-                    value={data.responsibleName || ''} 
+                    value={data.responsibleName || ''}
                     onChange={(e) => onChange('responsibleName', e.target.value)}
                     variant="outlined"
                     helperText="Nome ou E-mail do responsável (editável)"
+                    InputProps={{
+                        endAdornment: (
+                            <InputAdornment position="end">
+                                <Tooltip title="Pessoa de contato ou dono do processo que será responsável pela automação." arrow placement="top">
+                                    <IconButton edge="end" size="small">
+                                        <HelpOutline fontSize="small" color="action" />
+                                    </IconButton>
+                                </Tooltip>
+                            </InputAdornment>
+                        )
+                    }}
                 />
             </Paper>
 

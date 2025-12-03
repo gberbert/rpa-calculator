@@ -1,23 +1,23 @@
-// frontend/src/components/ROIWizard.jsx
 import React, { useState, useEffect } from 'react';
 import {
-    Box, Stepper, Step, StepLabel, Button, Typography, Paper, Container, 
+    Box, Stepper, Step, StepLabel, Button, Typography, Paper, Container,
     CircularProgress, Alert, useTheme, useMediaQuery, Chip
 } from '@mui/material';
 import { NavigateNext, NavigateBefore, Calculate, Refresh, Person } from '@mui/icons-material';
 import Step1ProjectInfo from './steps/Step1ProjectInfo';
 import Step2AsIsInputs from './steps/Step2AsIsInputs';
 import Step3Complexity from './steps/Step3Complexity';
-import Step4Review from './steps/Step4Review';
+import Step4Strategic from './steps/Step4Strategic';
+import Step5Review from './steps/Step5Review';
 import { projectService } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
-const steps = ['Projeto', 'Cenário', 'Complexidade', 'Revisão'];
+const steps = ['Projeto', 'Cenário', 'Complexidade', 'Estratégia', 'Revisão'];
 
 export default function ROIWizard({ onComplete }) {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-    const { currentUser } = useAuth(); 
+    const { currentUser } = useAuth();
 
     const [activeStep, setActiveStep] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -42,16 +42,23 @@ export default function ROIWizard({ onComplete }) {
             environment: 'web',
             numSteps: 10,
         },
+        strategic: {
+            cognitiveLevel: 'rule',
+            inputVariability: 'never',
+            errorCost: '',
+            needs24h: false,
+            turnoverRate: ''
+        }
     });
 
     // Preenche o nome visível com o email e guarda o UID escondido
     useEffect(() => {
         if (currentUser) {
-            setFormData(prev => ({ 
-                ...prev, 
+            setFormData(prev => ({
+                ...prev,
                 ownerUid: currentUser.uid,
                 // Se o campo estiver vazio, sugere o email do usuário logado
-                responsibleName: prev.responsibleName || currentUser.email 
+                responsibleName: prev.responsibleName || currentUser.email
             }));
         }
     }, [currentUser]);
@@ -87,20 +94,27 @@ export default function ROIWizard({ onComplete }) {
                 environment: 'web',
                 numSteps: 10,
             },
+            strategic: {
+                cognitiveLevel: 'rule',
+                inputVariability: 'never',
+                errorCost: '',
+                needs24h: false,
+                turnoverRate: ''
+            }
         });
     };
 
     const handleSubmit = async () => {
         setLoading(true);
         setError(null);
-        
+
         try {
             // Garante o ID correto no momento do envio
             const finalOwnerUid = currentUser ? currentUser.uid : (formData.ownerUid || 'anonymous');
 
             const payload = {
                 projectName: formData.projectName,
-                ownerUid: finalOwnerUid, 
+                ownerUid: finalOwnerUid,
                 // Opcional: Você pode salvar o responsibleName no banco se quiser exibir depois
                 // responsible_name: formData.responsibleName, 
                 inputs: {
@@ -117,6 +131,13 @@ export default function ROIWizard({ onComplete }) {
                     environment: formData.complexity.environment || 'web',
                     numSteps: parseInt(formData.complexity.numSteps) || 10,
                 },
+                strategic: {
+                    cognitiveLevel: formData.strategic.cognitiveLevel || 'rule',
+                    inputVariability: formData.strategic.inputVariability || 'never',
+                    errorCost: parseFloat(formData.strategic.errorCost) || 0,
+                    needs24h: formData.strategic.needs24h || false,
+                    turnoverRate: parseFloat(formData.strategic.turnoverRate) || 0
+                }
             };
 
             if (payload.inputs.volume <= 0 || payload.inputs.aht <= 0 || payload.inputs.fteCost <= 0) {
@@ -152,7 +173,8 @@ export default function ROIWizard({ onComplete }) {
             case 0: return formData.projectName.trim().length > 0;
             case 1: return (formData.inputs.volume > 0 && formData.inputs.aht > 0 && formData.inputs.fteCost > 0);
             case 2: return (formData.complexity.numApplications > 0 && formData.complexity.numSteps > 0);
-            case 3: return true;
+            case 3: return true; // Strategic step is optional or always valid as it has defaults
+            case 4: return true;
             default: return false;
         }
     };
@@ -162,14 +184,15 @@ export default function ROIWizard({ onComplete }) {
             case 0: return <Step1ProjectInfo data={formData} onChange={updateFormData} />;
             case 1: return <Step2AsIsInputs data={formData.inputs} onChange={(value) => updateFormData('inputs', value)} />;
             case 2: return <Step3Complexity data={formData.complexity} onChange={(value) => updateFormData('complexity', value)} />;
-            case 3: return <Step4Review data={formData} />;
+            case 3: return <Step4Strategic data={formData.strategic} onChange={(value) => updateFormData('strategic', value)} />;
+            case 4: return <Step5Review data={formData} />;
             default: return <Typography>Passo desconhecido</Typography>;
         }
     };
 
     return (
         <Container maxWidth="lg" sx={{ py: isMobile ? 2 : 4, px: isMobile ? 1 : 3 }}>
-            
+
             <Paper elevation={3} sx={{ p: isMobile ? 3 : 4, borderRadius: 2, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', mb: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Box>
@@ -182,11 +205,11 @@ export default function ROIWizard({ onComplete }) {
                     </Box>
                     {/* Indicador visual de quem está logado */}
                     {currentUser && (
-                        <Chip 
-                            icon={<Person sx={{ fill: 'white' }}/>} 
-                            label="Logado" 
-                            color="success" 
-                            variant="outlined" 
+                        <Chip
+                            icon={<Person sx={{ fill: 'white' }} />}
+                            label="Logado"
+                            color="success"
+                            variant="outlined"
                             sx={{ color: 'white', borderColor: 'white' }}
                         />
                     )}
@@ -228,15 +251,15 @@ export default function ROIWizard({ onComplete }) {
                         {activeStep === steps.length - 1 ? (
                             <>
                                 {!isMobile && (
-                                    <Button onClick={handleReset} variant="outlined" disabled={loading} startIcon={<Refresh/>}>
+                                    <Button onClick={handleReset} variant="outlined" disabled={loading} startIcon={<Refresh />}>
                                         Reiniciar
                                     </Button>
                                 )}
-                                
+
                                 <Button
                                     onClick={handleSubmit}
                                     variant="contained"
-                                    startIcon={loading ? <CircularProgress size={20} color="inherit"/> : <Calculate />}
+                                    startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Calculate />}
                                     disabled={loading}
                                     fullWidth={isMobile}
                                     size={isMobile ? "large" : "medium"}
