@@ -144,7 +144,7 @@ class FinancialService {
     /**
      * Calcula todos os indicadores financeiros (Enterprise)
      */
-    async calculateFullROI(inputs, complexity, strategic = {}) {
+    async calculateFullROI(inputs, complexity, strategic = {}, maintenance = {}) {
         // 1. Carregar configurações do banco
         const config = await this.getGlobalRates();
 
@@ -219,7 +219,17 @@ class FinancialService {
             idpCost = 5000;
         }
 
-        const maintenanceCost = developmentCost * 0.15; // 15% do dev para sustentação
+        // --- Maintenance Cost Calculation (New Logic) ---
+        let maintenanceCost = 0;
+        if (maintenance.fteMonthlyCost && maintenance.capacityDivisor) {
+            // Custo Mensal Fracionado = Custo FTE / Capacidade
+            // Custo Anual = Mensal * 12
+            maintenanceCost = (maintenance.fteMonthlyCost / maintenance.capacityDivisor) * 12;
+        } else {
+            // Fallback: 15% do custo de desenvolvimento
+            maintenanceCost = developmentCost * 0.15;
+        }
+
         const totalToBeCost = annualInfraCost + maintenanceCost + genAiCost + idpCost;
 
         // 6. ROI e Payback
@@ -240,6 +250,12 @@ class FinancialService {
                 genAiCost,
                 idpCost,
                 slaMultiplier: strategic.needs24h ? 3 : 1
+            },
+            maintenance: {
+                monthlyCost: maintenanceCost / 12,
+                annualCost: maintenanceCost,
+                fteCost: maintenance.fteMonthlyCost || 0,
+                capacityDivisor: maintenance.capacityDivisor || 0
             },
             costs: {
                 asIs: {
