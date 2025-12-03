@@ -1,10 +1,10 @@
 // frontend/src/components/ResultsDashboard.jsx
 import React, { useRef, useState } from 'react';
 import {
-    Box, Typography, Paper, Grid, Card, CardContent, Chip, Divider, Button, Container, Tooltip as MuiTooltip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow
+    Box, Typography, Paper, Grid, Card, CardContent, Chip, Divider, Button, Container, Tooltip as MuiTooltip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, List, ListItem, ListItemIcon, ListItemText
 } from '@mui/material';
 import {
-    TrendingUp, AttachMoney, Schedule, Assessment, Refresh, Download, Info, Description
+    TrendingUp, AttachMoney, Schedule, Assessment, Refresh, Download, Info, Description, CheckCircle, Settings, Psychology
 } from '@mui/icons-material';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line,
@@ -20,7 +20,7 @@ import { useAuth } from '../contexts/AuthContext';
 export default function ResultsDashboard({ data, onNewCalculation }) {
     const dashboardRef = useRef(null);
     const [isExporting, setIsExporting] = useState(false);
-    
+
     // 2. PEGAR O USUÁRIO LOGADO
     const { currentUser } = useAuth();
 
@@ -45,6 +45,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
     const results = data.results;
     const complexity = data.complexity_score;
     const inputs = data.inputs_as_is;
+    const strategic = data.strategic_analysis || {}; // Dados calculados da estratégia
 
     // Dados gráficos
     const costComparisonData = [
@@ -58,6 +59,10 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
         { name: 'Manutenção', value: results.cost_breakdown.maintenanceCost },
     ];
 
+    // Adicionar custos de IA se existirem
+    if (strategic.genAiCost > 0) toBeCostBreakdown.push({ name: 'GenAI (Tokens)', value: strategic.genAiCost * 12 });
+    if (strategic.idpCost > 0) toBeCostBreakdown.push({ name: 'IDP (OCR)', value: strategic.idpCost * 12 });
+
     const paybackData = [];
     const monthlySavings = results.monthly_savings;
     let accumulated = -results.development_cost;
@@ -68,7 +73,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
         paybackData.push({ month: month, accumulated: accumulated });
     }
 
-    const COLORS = ['#667eea', '#764ba2', '#f093fb'];
+    const COLORS = ['#667eea', '#764ba2', '#f093fb', '#ff9800', '#e91e63'];
 
     const getComplexityColor = (classification) => {
         if (classification === 'HIGH') return 'error';
@@ -83,9 +88,9 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
 
         try {
             const element = dashboardRef.current;
-            
+
             const canvas = await html2canvas(element, {
-                scale: 2, 
+                scale: 2,
                 useCORS: true,
                 logging: false,
                 backgroundColor: '#ffffff',
@@ -94,7 +99,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
             });
 
             const imgData = canvas.toDataURL('image/png');
-            const pdfWidth = 210; 
+            const pdfWidth = 210;
             const imgHeight = (canvas.height * pdfWidth) / canvas.width;
             const pdf = new jsPDF('p', 'mm', [pdfWidth, imgHeight]);
 
@@ -121,7 +126,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                     <Box sx={{ display: 'flex', gap: 2 }}>
                         <Button
                             variant="contained"
-                            startIcon={isExporting ? <Refresh sx={{ animation: 'spin 1s linear infinite' }}/> : <Download />}
+                            startIcon={isExporting ? <Refresh sx={{ animation: 'spin 1s linear infinite' }} /> : <Download />}
                             onClick={handleExportPDF}
                             disabled={isExporting}
                             sx={{ backgroundColor: 'rgba(255,255,255,0.2)', '&:hover': { backgroundColor: 'rgba(255,255,255,0.3)' } }}
@@ -142,16 +147,16 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
 
             {/* ÁREA DE CAPTURA PARA O PDF */}
             <div ref={dashboardRef} style={{ backgroundColor: '#f4f6f8', padding: '30px' }}>
-                
+
                 {/* CABEÇALHO DO RELATÓRIO */}
-                <Box 
-                    sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        alignItems: 'flex-end', 
-                        mb: 4, 
-                        borderBottom: '2px solid #1a237e', 
-                        pb: 2 
+                <Box
+                    sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-end',
+                        mb: 4,
+                        borderBottom: '2px solid #1a237e',
+                        pb: 2
                     }}
                 >
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -312,6 +317,18 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                     <Typography variant="body2">Manutenção e Sustentação</Typography>
                                     <Typography variant="body2" fontWeight={600}>{formatCurrency(results.cost_breakdown.maintenanceCost)}</Typography>
                                 </Box>
+                                {strategic.genAiCost > 0 && (
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                        <Typography variant="body2">Custos GenAI (Tokens)</Typography>
+                                        <Typography variant="body2" fontWeight={600}>{formatCurrency(strategic.genAiCost * 12)}</Typography>
+                                    </Box>
+                                )}
+                                {strategic.idpCost > 0 && (
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                                        <Typography variant="body2">Custos IDP (OCR)</Typography>
+                                        <Typography variant="body2" fontWeight={600}>{formatCurrency(strategic.idpCost * 12)}</Typography>
+                                    </Box>
+                                )}
                                 <Divider sx={{ my: 1 }} />
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <Typography variant="body1" fontWeight={600}>Total Anual</Typography>
@@ -393,19 +410,73 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                             </Table>
                         </Grid>
 
+                        {/* NOVA SEÇÃO: Impactos Estratégicos */}
                         <Grid item xs={12}>
                             <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ color: '#1a237e', mt: 2 }}>
-                                3. Fórmulas Utilizadas
+                                3. Impactos Estratégicos e Intangíveis
+                            </Typography>
+                            <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f8fafc', border: '1px dashed #94a3b8' }}>
+                                <Grid container spacing={2}>
+                                    <Grid item xs={12} md={6}>
+                                        <List dense>
+                                            <ListItem>
+                                                <ListItemIcon><CheckCircle fontSize="small" color="success" /></ListItemIcon>
+                                                <ListItemText
+                                                    primary="Custo de Risco Evitado"
+                                                    secondary={strategic.riskCost ? `${formatCurrency(strategic.riskCost)} / mês` : 'Não calculado'}
+                                                />
+                                            </ListItem>
+                                            <ListItem>
+                                                <ListItemIcon><CheckCircle fontSize="small" color="success" /></ListItemIcon>
+                                                <ListItemText
+                                                    primary="Soft Savings (Turnover)"
+                                                    secondary={strategic.turnoverCost ? `${formatCurrency(strategic.turnoverCost)} / ano` : 'Não calculado'}
+                                                />
+                                            </ListItem>
+                                            <ListItem>
+                                                <ListItemIcon><CheckCircle fontSize="small" color="success" /></ListItemIcon>
+                                                <ListItemText
+                                                    primary="Multiplicador de Turno (SLA)"
+                                                    secondary={strategic.slaMultiplier > 1 ? `3x (Cobre 3 turnos)` : '1x (Horário Comercial)'}
+                                                />
+                                            </ListItem>
+                                        </List>
+                                    </Grid>
+                                    <Grid item xs={12} md={6}>
+                                        <List dense>
+                                            <ListItem>
+                                                <ListItemIcon><Psychology fontSize="small" color="action" /></ListItemIcon>
+                                                <ListItemText
+                                                    primary="Custo GenAI (IA Generativa)"
+                                                    secondary={strategic.genAiCost > 0 ? `${formatCurrency(strategic.genAiCost)} / mês` : 'N/A'}
+                                                />
+                                            </ListItem>
+                                            <ListItem>
+                                                <ListItemIcon><Settings fontSize="small" color="action" /></ListItemIcon>
+                                                <ListItemText
+                                                    primary="Custo IDP (Processamento Inteligente)"
+                                                    secondary={strategic.idpCost > 0 ? `${formatCurrency(strategic.idpCost)} / mês` : 'N/A'}
+                                                />
+                                            </ListItem>
+                                        </List>
+                                    </Grid>
+                                </Grid>
+                            </Paper>
+                        </Grid>
+
+                        <Grid item xs={12}>
+                            <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ color: '#1a237e', mt: 2 }}>
+                                4. Fórmulas Utilizadas
                             </Typography>
                             <Grid container spacing={2}>
                                 <Grid item xs={12} md={4}>
                                     <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f9f9f9' }}>
                                         <Typography variant="subtitle2" fontWeight="bold" color="primary">Custo AS-IS (Manual)</Typography>
                                         <Typography variant="caption" display="block" sx={{ mt: 1, fontStyle: 'italic' }}>
-                                            (Volume × AHT × 12) × Custo_Minuto × (1 + Erro)
+                                            (Volume × AHT × 12) × Custo_Minuto × (1 + Erro) × SLA_Mult
                                         </Typography>
                                         <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                                            Onde Custo_Minuto = Custo FTE / 9600 min/mês.
+                                            Considera agora o multiplicador de turnos (SLA) e a taxa de erro.
                                         </Typography>
                                     </Paper>
                                 </Grid>
@@ -427,7 +498,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                             ((Economia - Investimento) / Investimento) × 100
                                         </Typography>
                                         <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                                            Economia = Custo AS-IS - Custo TO-BE (Licenças + Infra + Manutenção).
+                                            Economia = (Custo AS-IS + Risco + Turnover) - (Custo TO-BE + GenAI + IDP).
                                         </Typography>
                                     </Paper>
                                 </Grid>
