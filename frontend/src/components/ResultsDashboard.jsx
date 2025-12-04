@@ -76,9 +76,20 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
     const COLORS = ['#667eea', '#764ba2', '#f093fb', '#ff9800', '#e91e63'];
 
     const getComplexityColor = (classification) => {
-        if (classification === 'HIGH') return 'error';
+        if (classification === 'VERY_COMPLEX' || classification === 'COMPLEX') return 'error';
         if (classification === 'MEDIUM') return 'warning';
         return 'success';
+    };
+
+    const getComplexityLabel = (classification) => {
+        const map = {
+            'VERY_SIMPLE': 'MUITO SIMPLES',
+            'SIMPLE': 'SIMPLES',
+            'MEDIUM': 'MÉDIA',
+            'COMPLEX': 'COMPLEXA',
+            'VERY_COMPLEX': 'MUITO COMPLEXA'
+        };
+        return map[classification] || classification;
     };
 
     // --- FUNÇÃO DE EXPORTAÇÃO PDF ---
@@ -227,7 +238,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                     <Assessment sx={{ mr: 1, color: getComplexityColor(complexity.classification) }} />
                                     <Typography variant="body2" color="text.secondary">Complexidade</Typography>
                                 </Box>
-                                <Typography variant="h4" fontWeight={700}>{complexity.classification}</Typography>
+                                <Typography variant="h4" fontWeight={700}>{getComplexityLabel(complexity.classification)}</Typography>
                                 <Typography variant="caption" color="text.secondary">{complexity.hours.totalHours}h desenvolvimento</Typography>
                             </CardContent>
                         </Card>
@@ -391,20 +402,30 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    <TableRow selected={complexity.classification === 'LOW'}>
-                                        <TableCell>BAIXA</TableCell>
-                                        <TableCell>4 - 6 pontos</TableCell>
-                                        <TableCell>104h</TableCell>
+                                    <TableRow selected={complexity.classification === 'VERY_SIMPLE'}>
+                                        <TableCell>MUITO SIMPLES</TableCell>
+                                        <TableCell>&lt; 6 pontos</TableCell>
+                                        <TableCell>40h</TableCell>
+                                    </TableRow>
+                                    <TableRow selected={complexity.classification === 'SIMPLE'}>
+                                        <TableCell>SIMPLES</TableCell>
+                                        <TableCell>6 - 8 pontos</TableCell>
+                                        <TableCell>80h</TableCell>
                                     </TableRow>
                                     <TableRow selected={complexity.classification === 'MEDIUM'}>
                                         <TableCell>MÉDIA</TableCell>
-                                        <TableCell>7 - 11 pontos</TableCell>
-                                        <TableCell>208h</TableCell>
+                                        <TableCell>9 - 11 pontos</TableCell>
+                                        <TableCell>160h</TableCell>
                                     </TableRow>
-                                    <TableRow selected={complexity.classification === 'HIGH'}>
-                                        <TableCell>ALTA</TableCell>
-                                        <TableCell>12+ pontos</TableCell>
-                                        <TableCell>416h</TableCell>
+                                    <TableRow selected={complexity.classification === 'COMPLEX'}>
+                                        <TableCell>COMPLEXA</TableCell>
+                                        <TableCell>12 - 14 pontos</TableCell>
+                                        <TableCell>320h</TableCell>
+                                    </TableRow>
+                                    <TableRow selected={complexity.classification === 'VERY_COMPLEX'}>
+                                        <TableCell>MUITO COMPLEXA</TableCell>
+                                        <TableCell>&gt; 14 pontos</TableCell>
+                                        <TableCell>640h</TableCell>
                                     </TableRow>
                                 </TableBody>
                             </Table>
@@ -484,10 +505,10 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                     <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f9f9f9' }}>
                                         <Typography variant="subtitle2" fontWeight="bold" color="primary">Investimento (CAPEX)</Typography>
                                         <Typography variant="caption" display="block" sx={{ mt: 1, fontStyle: 'italic' }}>
-                                            Horas Totais × Taxa Blended da Squad
+                                            Σ (Horas × %Participação × Taxa)
                                         </Typography>
                                         <Typography variant="caption" display="block" sx={{ mt: 1 }}>
-                                            As horas vêm da matriz de complexidade e a taxa é a média ponderada dos perfis configurados.
+                                            Soma do custo de cada perfil baseado em sua participação na complexidade específica.
                                         </Typography>
                                     </Paper>
                                 </Grid>

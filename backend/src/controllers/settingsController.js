@@ -1,4 +1,5 @@
 import { getFirestore } from '../config/firebase.js';
+import { clearFinancialCache } from '../services/calculationService.js';
 
 class SettingsController {
     constructor() {
@@ -8,7 +9,7 @@ class SettingsController {
     async getSettings(req, res) {
         try {
             const doc = await this.db.collection('settings').doc('global_config').get();
-            
+
             if (!doc.exists) {
                 // CORREÇÃO: Padrão Enterprise atualizado
                 const defaultSettings = {
@@ -41,9 +42,12 @@ class SettingsController {
             // Firestore não aceita undefined. Vamos garantir que campos opcionais existam.
             // O frontend já deve tratar, mas garantimos aqui também.
             if (!updates.team_composition) updates.team_composition = [];
-            
+
             // Salvamos com merge: true para não apagar campos que não foram enviados
             await this.db.collection('settings').doc('global_config').set(updates, { merge: true });
+
+            // Invalida o cache financeiro para garantir que a próxima simulação use os novos valores
+            clearFinancialCache();
 
             // Lemos de volta para confirmar a gravação
             const updatedDoc = await this.db.collection('settings').doc('global_config').get();

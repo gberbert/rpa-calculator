@@ -65,9 +65,12 @@ export default function Step5Review({ data }) {
         else if (data.complexity.numSteps <= 50) points += 3;
         else points += 5;
 
-        if (points >= 12) return { level: 'ALTA', color: 'error' };
-        if (points >= 7) return { level: 'MÉDIA', color: 'warning' };
-        return { level: 'BAIXA', color: 'success' };
+        // Classificação (5 Níveis)
+        if (points >= 14) return { level: 'MUITO COMPLEXA', color: 'error', label: 'Muito Complexa' };
+        if (points >= 11) return { level: 'COMPLEXA', color: 'error', label: 'Complexa' };
+        if (points >= 8) return { level: 'MÉDIA', color: 'warning', label: 'Média' };
+        if (points >= 6) return { level: 'SIMPLES', color: 'success', label: 'Simples' };
+        return { level: 'MUITO SIMPLES', color: 'success', label: 'Muito Simples' };
     }, [data.complexity]);
 
     // Estimativas para Memória de Cálculo (Sincronizado com Backend/Settings)
@@ -242,7 +245,7 @@ export default function Step5Review({ data }) {
                         Análise de Complexidade
                     </Typography>
                     <Chip
-                        label={`Complexidade: ${complexity.level}`}
+                        label={`Complexidade: ${complexity.label}`}
                         color={complexity.color}
                         sx={{ fontWeight: 600 }}
                     />

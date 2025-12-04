@@ -1,5 +1,20 @@
 import { getFirestore } from '../config/firebase.js';
 
+// Cache Global (Module Level) para ser compartilhado entre instâncias e invalidado externamente
+let globalCachedRates = null;
+let globalLastCacheTime = 0;
+const CACHE_TTL = 1000 * 60 * 5; // 5 minutes cache
+
+/**
+ * Função para limpar o cache financeiro.
+ * Deve ser chamada sempre que as configurações globais forem atualizadas.
+ */
+export const clearFinancialCache = () => {
+    globalCachedRates = null;
+    globalLastCacheTime = 0;
+    console.log('Financial cache cleared manually.');
+};
+
 /**
  * Serviço de Cálculo de Complexidade
  * Implementa a Matriz de Complexidade baseada em scoring
@@ -41,10 +56,15 @@ class ComplexityService {
         else if (numSteps <= 50) totalPoints += 3;
         else totalPoints += 5;
 
-        // Classificação
-        let classification = 'LOW';
-        if (totalPoints >= 12) classification = 'HIGH';
-        else if (totalPoints >= 7) classification = 'MEDIUM';
+        // Classificação (5 Níveis)
+        // Pontuação Máxima Estimada: 3 + 5 + 4 + 5 = 17
+        // Pontuação Mínima: 1 + 1 + 1 + 1 = 4
+        let classification = 'VERY_SIMPLE';
+        if (totalPoints >= 14) classification = 'VERY_COMPLEX';
+        else if (totalPoints >= 11) classification = 'COMPLEX';
+        else if (totalPoints >= 8) classification = 'MEDIUM';
+        else if (totalPoints >= 6) classification = 'SIMPLE';
+        else classification = 'VERY_SIMPLE';
 
         return {
             totalPoints,
@@ -60,9 +80,6 @@ class ComplexityService {
 class FinancialService {
     constructor() {
         this.db = getFirestore();
-        this.cachedRates = null;
-        this.lastCacheTime = 0;
-        this.CACHE_TTL = 1000 * 60 * 5; // 5 minutes cache
     }
 
     /**
@@ -70,9 +87,9 @@ class FinancialService {
      */
     async getGlobalRates() {
         const now = Date.now();
-        if (this.cachedRates && (now - this.lastCacheTime < this.CACHE_TTL)) {
+        if (globalCachedRates && (now - globalLastCacheTime < CACHE_TTL)) {
             console.log('Using cached global rates');
-            return this.cachedRates;
+            return globalCachedRates;
         }
 
         try {
@@ -82,9 +99,13 @@ class FinancialService {
             if (!settingsDoc.exists) {
                 // Fallback de segurança se o banco estiver vazio
                 data = {
-                    team_composition: [{ role: 'Dev Padrão', rate: 120.0, share: 1.0 }],
+                    team_composition: [{
+                        role: 'Dev Padrão',
+                        rate: 120.0,
+                        shares: { very_simple: 0.1, simple: 0.2, medium: 0.5, complex: 1.0, very_complex: 2.0 }
+                    }],
                     infra_costs: { rpa_license_annual: 15000.0, virtual_machine_annual: 5000.0 },
-                    baselines: { low: 100, medium: 240, high: 480 },
+                    baselines: { very_simple: 16.8, simple: 33.6, medium: 84, complex: 168, very_complex: 336 },
                     strategic_config: { genai_cost_per_transaction: 0.05, idp_license_annual: 5000, turnover_replacement_cost_percentage: 20 },
                     maintenance_config: { fte_monthly_cost: 8000, capacity_low: 90, capacity_medium: 70, capacity_high: 50 }
                 };
@@ -92,8 +113,8 @@ class FinancialService {
                 data = settingsDoc.data();
             }
 
-            this.cachedRates = data;
-            this.lastCacheTime = now;
+            globalCachedRates = data;
+            globalLastCacheTime = now;
             return data;
 
         } catch (error) {
@@ -116,22 +137,43 @@ class FinancialService {
     }
 
     /**
-     * Calcula o custo de desenvolvimento baseado no Mix da Squad
+     * Calcula o custo de desenvolvimento (CAPEX)
+     * Nova Fórmula (v2): Soma( (Percentual_Perfil * 168) * Valor_Hora_Perfil )
+     * Onde 168 é a base de horas mensal fixa.
      */
-    calculateDevelopmentCost(totalHours, teamComposition) {
+    calculateDevelopmentCost(teamComposition, complexityLevel) {
         // Fallback se não houver composição definida
         if (!teamComposition || teamComposition.length === 0) {
-            return totalHours * 120; // Taxa padrão de segurança
+            return 0;
         }
 
-        // Custo Blended (Misturado) = Soma (Taxa * %Participação)
-        let blendedHourlyRate = 0;
+        let totalCost = 0;
+        let totalHours = 0;
+        const levelKey = complexityLevel.toLowerCase(); // very_simple, simple, etc.
+
         teamComposition.forEach(member => {
-            blendedHourlyRate += (member.rate * member.share);
+            // Obtém a porcentagem de participação para a complexidade atual
+            let share = 0;
+            if (member.shares && typeof member.shares === 'object') {
+                share = member.shares[levelKey] !== undefined ? Number(member.shares[levelKey]) : 0;
+            } else if (member.share !== undefined) {
+                share = Number(member.share);
+            }
+
+            // Calcula horas do perfil: Share * 168
+            const roleHours = share * 168;
+
+            // Calcula custo do perfil: Horas * Taxa
+            const roleCost = roleHours * member.rate;
+
+            totalCost += roleCost;
+            totalHours += roleHours;
         });
 
-        const totalCost = totalHours * blendedHourlyRate;
-        return Math.round(totalCost * 100) / 100;
+        return {
+            cost: Math.round(totalCost * 100) / 100,
+            hours: Math.round(totalHours * 100) / 100
+        };
     }
 
     /**
@@ -161,18 +203,16 @@ class FinancialService {
             capacity_high: 50
         };
 
-        // 2. Calcular complexidade e horas
+        // 2. Calcular complexidade
         const complexityService = new ComplexityService();
         const complexityScore = complexityService.calculateComplexityScore(complexity);
 
-        // Mapeia a classificação para horas (fallback se não existir no banco)
-        const baselines = config.baselines || { low: 100, medium: 240, high: 480 };
-        const totalHours = baselines[complexityScore.classification.toLowerCase()];
+        // 3. Custo de Desenvolvimento e Horas Totais (Calculado dinamicamente)
+        const teamComp = config.team_composition || [];
+        const devResult = this.calculateDevelopmentCost(teamComp, complexityScore.classification);
 
-        // 3. Custo de Desenvolvimento (Squad Ponderada)
-        // Garante fallback se team_composition não existir
-        const teamComp = config.team_composition || [{ role: 'Dev', rate: 120, share: 1 }];
-        const developmentCost = this.calculateDevelopmentCost(totalHours, teamComp);
+        const developmentCost = devResult.cost;
+        const totalHours = devResult.hours;
 
         // 4. Custo AS-IS (Atual) - Base Operacional
         let asIsCost = this.calculateAsIsCost(inputs);
@@ -238,8 +278,12 @@ class FinancialService {
         let maintenanceCost = 0;
         let capacityDivisor = maintenanceConfig.capacity_medium; // Default
 
-        if (complexityScore.classification === 'LOW') capacityDivisor = maintenanceConfig.capacity_low;
-        if (complexityScore.classification === 'HIGH') capacityDivisor = maintenanceConfig.capacity_high;
+        // Ajuste de capacidade baseado na complexidade
+        if (complexityScore.classification === 'VERY_SIMPLE' || complexityScore.classification === 'SIMPLE') {
+            capacityDivisor = maintenanceConfig.capacity_low; // Alta capacidade (mais robôs por FTE)
+        } else if (complexityScore.classification === 'VERY_COMPLEX' || complexityScore.classification === 'COMPLEX') {
+            capacityDivisor = maintenanceConfig.capacity_high; // Baixa capacidade (menos robôs por FTE)
+        }
 
         if (maintenanceConfig.fte_monthly_cost && capacityDivisor) {
             // Custo Mensal Fracionado = Custo FTE / Capacidade

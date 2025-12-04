@@ -51,9 +51,12 @@ export default function Step3Complexity({ data, onChange }) {
         else if (data.numSteps <= 50) points += 3;
         else points += 5;
 
-        if (points >= 12) return { level: 'ALTA', color: 'error' };
-        if (points >= 7) return { level: 'MÉDIA', color: 'warning' };
-        return { level: 'BAIXA', color: 'success' };
+        // Classificação (5 Níveis)
+        if (points >= 14) return { level: 'MUITO COMPLEXA', color: 'error', label: 'Muito Complexa' };
+        if (points >= 11) return { level: 'COMPLEXA', color: 'error', label: 'Complexa' }; // Usando error (vermelho) para alta complexidade
+        if (points >= 8) return { level: 'MÉDIA', color: 'warning', label: 'Média' };
+        if (points >= 6) return { level: 'SIMPLES', color: 'success', label: 'Simples' };
+        return { level: 'MUITO SIMPLES', color: 'success', label: 'Muito Simples' };
     };
 
     const complexity = getComplexityEstimate();
@@ -71,7 +74,7 @@ export default function Step3Complexity({ data, onChange }) {
                     </Typography>
                 </Box>
                 <Chip
-                    label={`Complexidade: ${complexity.level}`}
+                    label={`Complexidade: ${complexity.label}`}
                     color={complexity.color}
                     sx={{ fontWeight: 600 }}
                 />
@@ -239,7 +242,7 @@ export default function Step3Complexity({ data, onChange }) {
                 }}
             >
                 <Typography variant="body2" color="info.dark">
-                    <strong>Nota:</strong> A complexidade é calculada automaticamente com base
+                    <strong>Nota:</strong> A complexidade é calculada automaticamente (5 níveis: Muito Simples a Muito Complexa) com base
                     nestes critérios e impacta diretamente no tempo de desenvolvimento e custo
                     do projeto.
                 </Typography>

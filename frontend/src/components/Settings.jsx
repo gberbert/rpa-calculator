@@ -15,19 +15,82 @@ export default function Settings() {
 
     useEffect(() => { loadSettings(); }, []);
 
+    // Recalcula as baselines e custos sempre que a composição do time mudar
+    useEffect(() => {
+        if (settings && settings.team_composition) {
+            const { baselines, costs } = calculateBaselinesAndCostsFromTeam(settings.team_composition);
+
+            setSettings(prev => ({
+                ...prev,
+                baselines: baselines,
+                calculated_costs: costs // Novo campo no estado local
+            }));
+        }
+    }, [settings?.team_composition]);
+
+    const calculateBaselinesAndCostsFromTeam = (team) => {
+        const complexities = ['very_simple', 'simple', 'medium', 'complex', 'very_complex'];
+        const baselines = {};
+        const costs = {};
+
+        complexities.forEach(key => {
+            let totalHours = 0;
+            let totalCost = 0;
+
+            team.forEach(member => {
+                const share = parseFloat(member.shares?.[key]) || 0;
+                const rate = parseFloat(member.rate) || 0;
+
+                // Fórmula Horas: Share * 168
+                const hours = share * 168;
+
+                // Fórmula Custo: Horas * Rate
+                const cost = hours * rate;
+
+                totalHours += hours;
+                totalCost += cost;
+            });
+
+            baselines[key] = Math.round(totalHours * 100) / 100;
+            costs[key] = Math.round(totalCost * 100) / 100;
+        });
+
+        return { baselines, costs };
+    };
+
     const loadSettings = async () => {
         try {
             const response = await settingsService.getSettings();
             const actualData = response.data || {};
 
+            // Normaliza a composição do time para o novo formato (shares por complexidade)
+            const normalizedTeam = (actualData.team_composition || []).map(member => {
+                const shares = member.shares || {
+                    very_simple: member.share || 0,
+                    simple: member.share || 0,
+                    medium: member.share || 0,
+                    complex: member.share || 0,
+                    very_complex: member.share || 0
+                };
+                return {
+                    role: member.role || 'Novo Cargo',
+                    rate: Number(member.rate) || 0,
+                    shares: shares
+                };
+            });
+
+            // Calcula baselines e custos iniciais
+            const { baselines, costs } = calculateBaselinesAndCostsFromTeam(normalizedTeam);
+
             const safeSettings = {
-                team_composition: actualData.team_composition || [],
+                team_composition: normalizedTeam,
                 infra_costs: {
                     rpa_license_annual: actualData.infra_costs?.rpa_license_annual || 0,
                     virtual_machine_annual: actualData.infra_costs?.virtual_machine_annual || 0,
                     database_annual: actualData.infra_costs?.database_annual || 0
                 },
-                baselines: actualData.baselines || { low: 104, medium: 208, high: 416 },
+                baselines: baselines,
+                calculated_costs: costs, // Inicializa custos
                 maintenance_config: actualData.maintenance_config || {
                     fte_monthly_cost: 8000,
                     capacity_low: 90,
@@ -52,7 +115,13 @@ export default function Settings() {
         const cleanTeam = (data.team_composition || []).map(member => ({
             role: member.role || 'Novo Cargo',
             rate: Number(member.rate) || 0,
-            share: Number(member.share) || 0
+            shares: {
+                very_simple: Number(member.shares?.very_simple) || 0,
+                simple: Number(member.shares?.simple) || 0,
+                medium: Number(member.shares?.medium) || 0,
+                complex: Number(member.shares?.complex) || 0,
+                very_complex: Number(member.shares?.very_complex) || 0
+            }
         }));
 
         const cleanInfra = {
@@ -61,11 +130,8 @@ export default function Settings() {
             database_annual: Number(data.infra_costs?.database_annual) || 0
         };
 
-        const cleanBaselines = {
-            low: Number(data.baselines?.low) || 104,
-            medium: Number(data.baselines?.medium) || 208,
-            high: Number(data.baselines?.high) || 416
-        };
+        // Baselines são recalculadas apenas para salvar, custos não precisam ir pro banco (são derivados)
+        const { baselines } = calculateBaselinesAndCostsFromTeam(cleanTeam);
 
         const cleanMaintenance = {
             fte_monthly_cost: Number(data.maintenance_config?.fte_monthly_cost) || 8000,
@@ -83,7 +149,7 @@ export default function Settings() {
         return {
             team_composition: cleanTeam,
             infra_costs: cleanInfra,
-            baselines: cleanBaselines,
+            baselines: baselines,
             maintenance_config: cleanMaintenance,
             strategic_config: cleanStrategic
         };
@@ -96,7 +162,10 @@ export default function Settings() {
         try {
             const cleanSettings = sanitizePayload(settings);
             await settingsService.updateSettings(cleanSettings);
-            setSettings(cleanSettings);
+            // Ao salvar, atualizamos o estado com o que foi limpo, mas precisamos recalcular os custos para exibição
+            const { costs } = calculateBaselinesAndCostsFromTeam(cleanSettings.team_composition);
+            setSettings({ ...cleanSettings, calculated_costs: costs });
+
             setMessage({ type: 'success', text: 'Configurações e parâmetros salvos com sucesso!' });
         } catch (error) {
             console.error("Erro no salvamento:", error);
@@ -107,17 +176,28 @@ export default function Settings() {
     };
 
     // --- Manipuladores ---
-    const handleRoleChange = (index, field, value) => {
+    const handleRoleChange = (index, field, value, complexityKey = null) => {
         const newTeam = [...settings.team_composition];
-        if (field === 'role') { newTeam[index][field] = value; }
-        else { newTeam[index][field] = value; }
+        if (complexityKey) {
+            newTeam[index].shares = {
+                ...newTeam[index].shares,
+                [complexityKey]: value
+            };
+        } else {
+            newTeam[index][field] = value;
+        }
+        // A atualização do estado disparará o useEffect para recalcular baselines
         setSettings({ ...settings, team_composition: newTeam });
     };
 
     const handleAddRole = () => {
         setSettings(prev => ({
             ...prev,
-            team_composition: [...prev.team_composition, { role: 'Novo Cargo', rate: 0, share: 0.0 }]
+            team_composition: [...prev.team_composition, {
+                role: 'Novo Cargo',
+                rate: 0,
+                shares: { very_simple: 0, simple: 0, medium: 0, complex: 0, very_complex: 0 }
+            }]
         }));
     };
 
@@ -135,28 +215,15 @@ export default function Settings() {
         }));
     };
 
-    const updateBaseline = (field, value) => {
-        setSettings(prev => ({
-            ...prev,
-            baselines: { ...prev.baselines, [field]: value }
-        }));
-    };
-
-    const getTotalShare = () => {
-        if (!settings?.team_composition) return 0;
-        return settings.team_composition.reduce((acc, curr) => acc + (parseFloat(curr.share) || 0), 0);
-    };
-
-    const getBlendedRate = () => {
-        if (!settings?.team_composition) return 0;
-        return settings.team_composition.reduce((acc, curr) => acc + ((parseFloat(curr.rate) || 0) * (parseFloat(curr.share) || 0)), 0);
-    };
-
     if (loading) return <Box p={4} display="flex" justifyContent="center"><CircularProgress /></Box>;
     if (!settings) return <Box p={4}><Alert severity="error">Erro ao carregar configurações.</Alert></Box>;
 
+    const formatCurrency = (value) => {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+    };
+
     return (
-        <Container maxWidth="lg">
+        <Container maxWidth="xl">
             <Typography variant="h5" sx={{ mb: 3, fontWeight: 'bold', color: '#1a237e' }}>
                 Configurações Globais
             </Typography>
@@ -166,7 +233,14 @@ export default function Settings() {
             {/* SEÇÃO 1: SQUAD E CUSTOS DE PESSOAL */}
             <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Typography variant="h6">1. Composição da Squad (Blended Rate)</Typography>
+                    <Box>
+                        <Typography variant="h6">1. Composição da Squad (Matriz de Participação)</Typography>
+                        <Typography variant="body2" color="text.secondary">
+                            Defina o percentual de alocação de cada perfil (base 168h) para cada complexidade.
+                            <br />
+                            Ex: 0.5 = 50% de 168h = 84h.
+                        </Typography>
+                    </Box>
                     <Button variant="outlined" startIcon={<PersonAdd />} onClick={handleAddRole} size="small">
                         Adicionar Cargo
                     </Button>
@@ -176,73 +250,89 @@ export default function Settings() {
                     <Table size="small">
                         <TableHead sx={{ bgcolor: '#f5f5f5' }}>
                             <TableRow>
-                                <TableCell>Perfil / Cargo</TableCell>
-                                <TableCell width="20%">Custo Hora (R$)</TableCell>
-                                <TableCell width="20%">Participação % (0.0 - 1.0)</TableCell>
-                                <TableCell width="10%" align="center">Ações</TableCell>
+                                <TableCell width="20%">Perfil / Cargo</TableCell>
+                                <TableCell width="10%">Custo/h (R$)</TableCell>
+                                <TableCell align="center">M. Simples</TableCell>
+                                <TableCell align="center">Simples</TableCell>
+                                <TableCell align="center">Média</TableCell>
+                                <TableCell align="center">Complexa</TableCell>
+                                <TableCell align="center">M. Complexa</TableCell>
+                                <TableCell width="5%" align="center">Ações</TableCell>
                             </TableRow>
                         </TableHead>
                         <TableBody>
                             {settings.team_composition.map((member, index) => (
                                 <TableRow key={index}>
-                                    <TableCell><TextField fullWidth variant="standard" value={member.role} onChange={(e) => handleRoleChange(index, 'role', e.target.value)} /></TableCell>
-                                    <TableCell><TextField fullWidth type="number" variant="standard" value={member.rate} onChange={(e) => handleRoleChange(index, 'rate', e.target.value)} /></TableCell>
-                                    <TableCell><TextField fullWidth type="number" step="0.1" variant="standard" value={member.share} onChange={(e) => handleRoleChange(index, 'share', e.target.value)} error={getTotalShare() > 1.01} /></TableCell>
-                                    <TableCell align="center"><IconButton size="small" color="error" onClick={() => handleDeleteRole(index)}><Delete /></IconButton></TableCell>
+                                    <TableCell>
+                                        <TextField fullWidth variant="standard" value={member.role} onChange={(e) => handleRoleChange(index, 'role', e.target.value)} />
+                                    </TableCell>
+                                    <TableCell>
+                                        <TextField fullWidth type="number" variant="standard" value={member.rate} onChange={(e) => handleRoleChange(index, 'rate', e.target.value)} />
+                                    </TableCell>
+                                    {['very_simple', 'simple', 'medium', 'complex', 'very_complex'].map((key) => (
+                                        <TableCell key={key} align="center">
+                                            <TextField
+                                                fullWidth
+                                                type="number"
+                                                variant="standard"
+                                                inputProps={{ style: { textAlign: 'center' } }}
+                                                value={member.shares[key]}
+                                                onChange={(e) => handleRoleChange(index, 'shares', e.target.value, key)}
+                                                placeholder="0.0"
+                                            />
+                                        </TableCell>
+                                    ))}
+                                    <TableCell align="center">
+                                        <IconButton size="small" color="error" onClick={() => handleDeleteRole(index)}><Delete /></IconButton>
+                                    </TableCell>
                                 </TableRow>
                             ))}
-                            <TableRow>
-                                <TableCell colSpan={2} align="right"><strong>Total Participação:</strong></TableCell>
-                                <TableCell>
-                                    <Typography color={Math.abs(getTotalShare() - 1) > 0.01 ? 'error' : 'success.main'} fontWeight="bold">
-                                        {(getTotalShare() * 100).toFixed(0)}%
-                                    </Typography>
-                                </TableCell>
-                                <TableCell />
-                            </TableRow>
                         </TableBody>
                     </Table>
                 </TableContainer>
             </Paper>
 
-            {/* SEÇÃO 2: PARÂMETROS DE ESTIMATIVA (HORAS) */}
-            <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
+            {/* SEÇÃO 2: PARÂMETROS DE ESTIMATIVA (HORAS) - READONLY */}
+            <Paper elevation={3} sx={{ p: 4, mb: 4, bgcolor: '#f8f9fa' }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                     <Functions color="primary" sx={{ mr: 1 }} />
-                    <Typography variant="h6">2. Parâmetros de Estimativa (Horas por Complexidade)</Typography>
+                    <Typography variant="h6">2. Parâmetros de Estimativa (Horas Calculadas)</Typography>
                 </Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    Defina o volume de horas totais (Dev + Análise) estimado para cada nível de complexidade.
+                    Volume total de horas calculado automaticamente: <strong>Σ (Percentual × 168h)</strong>.
                 </Typography>
 
                 <Grid container spacing={3}>
-                    <Grid item xs={12} md={4}>
-                        <TextField
-                            fullWidth label="Complexidade BAIXA" type="number"
-                            value={settings.baselines.low}
-                            onChange={(e) => updateBaseline('low', e.target.value)}
-                            InputProps={{ endAdornment: <Typography variant="caption">horas</Typography> }}
-                            helperText="4 a 6 pontos"
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={4}>
-                        <TextField
-                            fullWidth label="Complexidade MÉDIA" type="number"
-                            value={settings.baselines.medium}
-                            onChange={(e) => updateBaseline('medium', e.target.value)}
-                            InputProps={{ endAdornment: <Typography variant="caption">horas</Typography> }}
-                            helperText="7 a 11 pontos"
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={4}>
-                        <TextField
-                            fullWidth label="Complexidade ALTA" type="number"
-                            value={settings.baselines.high}
-                            onChange={(e) => updateBaseline('high', e.target.value)}
-                            InputProps={{ endAdornment: <Typography variant="caption">horas</Typography> }}
-                            helperText="12 ou mais pontos"
-                        />
-                    </Grid>
+                    {['very_simple', 'simple', 'medium', 'complex', 'very_complex'].map((key) => {
+                        const labels = {
+                            very_simple: 'Muito Simples',
+                            simple: 'Simples',
+                            medium: 'Média',
+                            complex: 'Complexa',
+                            very_complex: 'Muito Complexa'
+                        };
+                        return (
+                            <Grid item xs={12} md={2} key={key}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                    <TextField
+                                        fullWidth
+                                        label={labels[key]}
+                                        value={settings.baselines[key]}
+                                        InputProps={{ readOnly: true, endAdornment: <Typography variant="caption">h</Typography> }}
+                                        variant="filled"
+                                    />
+                                    <TextField
+                                        fullWidth
+                                        label="Valor Estimado"
+                                        value={formatCurrency(settings.calculated_costs?.[key])}
+                                        InputProps={{ readOnly: true, style: { fontWeight: 'bold', color: '#2e7d32' } }}
+                                        variant="outlined"
+                                        size="small"
+                                    />
+                                </Box>
+                            </Grid>
+                        );
+                    })}
                 </Grid>
 
                 {/* CARD EXPLICATIVO DA MEMÓRIA DE CÁLCULO */}
@@ -250,59 +340,28 @@ export default function Settings() {
                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                         <HelpOutline color="primary" sx={{ mr: 1 }} />
                         <Typography variant="subtitle1" fontWeight="bold" color="primary">
-                            Como o Sistema Decide a Complexidade?
+                            Como o Sistema Calcula o Investimento?
                         </Typography>
                     </Box>
 
                     <Grid container spacing={4}>
                         <Grid item xs={12} md={7}>
                             <Typography variant="body2" paragraph>
-                                A classificação (Baixa, Média, Alta) é determinada automaticamente somando pontos baseados nas respostas do formulário:
+                                O sistema multiplica o percentual de cada perfil por <strong>168 horas</strong> (base mensal) para encontrar as horas dedicadas.
+                                Em seguida, multiplica pelo valor hora do perfil.
                             </Typography>
-                            <Table size="small" sx={{ bgcolor: 'white', borderRadius: 1 }}>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell sx={{ fontWeight: 'bold' }}>Critério</TableCell>
-                                        <TableCell sx={{ fontWeight: 'bold' }}>Regra de Pontuação</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    <TableRow>
-                                        <TableCell>Aplicações</TableCell>
-                                        <TableCell>1-2 (1pt) | 3-4 (2pts) | 5+ (3pts)</TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell>Tipo de Dados</TableCell>
-                                        <TableCell>Estruturados (1pt) | Texto (2pts) | OCR (5pts)</TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell>Ambiente</TableCell>
-                                        <TableCell>Web/Local (1pt) | SAP (2pts) | Citrix (4pts)</TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell>Passos/Regras</TableCell>
-                                        <TableCell>&lt;20 (1pt) | 20-50 (3pts) | &gt;50 (5pts)</TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
+                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                <Chip label="Base Mensal: 168h" size="small" color="primary" variant="outlined" />
+                                <Chip label="Custo = Horas × Rate" size="small" color="primary" variant="outlined" />
+                            </Box>
                         </Grid>
 
                         <Grid item xs={12} md={5}>
                             <Typography variant="body2" paragraph>
-                                <strong>Fórmula do Custo de Investimento:</strong>
+                                <strong>Fórmula do CAPEX:</strong>
                             </Typography>
                             <Box sx={{ fontFamily: 'monospace', bgcolor: 'white', p: 1.5, borderRadius: 1, mb: 2, border: '1px dashed #90caf9', fontSize: '0.85rem' }}>
-                                Custo = Horas (conforme classificação) × Taxa Squad
-                            </Box>
-
-                            <Typography variant="body2" gutterBottom>
-                                <strong>Taxa Atual da Squad:</strong> {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(getBlendedRate())}/h
-                            </Typography>
-
-                            <Box sx={{ mt: 2 }}>
-                                <Chip label="Baixa: 4-6 pts" size="small" color="success" variant="outlined" sx={{ mr: 1, mb: 1 }} />
-                                <Chip label="Média: 7-11 pts" size="small" color="warning" variant="outlined" sx={{ mr: 1, mb: 1 }} />
-                                <Chip label="Alta: 12+ pts" size="small" color="error" variant="outlined" sx={{ mb: 1 }} />
+                                Σ ((%Perfil × 168) × Taxa_Perfil)
                             </Box>
                         </Grid>
                     </Grid>
@@ -351,7 +410,6 @@ export default function Settings() {
                 </Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                     Defina o custo da equipe de sustentação e a capacidade de atendimento por complexidade.
-                    O custo será fracionado: (Custo FTE / Capacidade) = Custo por Robô.
                 </Typography>
 
                 <Grid container spacing={3}>
@@ -364,7 +422,6 @@ export default function Settings() {
                                 maintenance_config: { ...prev.maintenance_config, fte_monthly_cost: e.target.value }
                             }))}
                             InputProps={{ startAdornment: <Typography variant="caption" sx={{ mr: 1 }}>R$</Typography> }}
-                            helperText="Salário + Encargos"
                         />
                     </Grid>
                     <Grid item xs={12} md={3}>
@@ -409,33 +466,27 @@ export default function Settings() {
                     <Psychology color="primary" sx={{ mr: 1 }} />
                     <Typography variant="h6">5. Parâmetros de IA e Estratégia</Typography>
                 </Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    Defina os custos unitários para tecnologias cognitivas e premissas de cálculo estratégico.
-                </Typography>
-
                 <Grid container spacing={3}>
                     <Grid item xs={12} md={4}>
                         <TextField
-                            fullWidth label="Custo GenAI por Transação (Tokens)" type="number"
+                            fullWidth label="Custo GenAI por Transação" type="number"
                             value={settings.strategic_config?.genai_cost_per_transaction || 0.05}
                             onChange={(e) => setSettings(prev => ({
                                 ...prev,
                                 strategic_config: { ...prev.strategic_config, genai_cost_per_transaction: e.target.value }
                             }))}
                             InputProps={{ startAdornment: <Typography variant="caption" sx={{ mr: 1 }}>R$</Typography> }}
-                            helperText="Custo médio de tokens LLM por item processado."
                         />
                     </Grid>
                     <Grid item xs={12} md={4}>
                         <TextField
-                            fullWidth label="Licença Anual IDP (OCR AI)" type="number"
+                            fullWidth label="Licença Anual IDP" type="number"
                             value={settings.strategic_config?.idp_license_annual || 5000}
                             onChange={(e) => setSettings(prev => ({
                                 ...prev,
                                 strategic_config: { ...prev.strategic_config, idp_license_annual: e.target.value }
                             }))}
                             InputProps={{ startAdornment: <Typography variant="caption" sx={{ mr: 1 }}>R$</Typography> }}
-                            helperText="Custo fixo anual caso utilize IDP."
                         />
                     </Grid>
                     <Grid item xs={12} md={4}>
@@ -447,7 +498,6 @@ export default function Settings() {
                                 strategic_config: { ...prev.strategic_config, turnover_replacement_cost_percentage: e.target.value }
                             }))}
                             InputProps={{ endAdornment: <Typography variant="caption" sx={{ ml: 1 }}>%</Typography> }}
-                            helperText="% do Salário Anual gasto para repor um funcionário."
                         />
                     </Grid>
                 </Grid>
