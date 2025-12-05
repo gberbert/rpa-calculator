@@ -420,8 +420,20 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                         <Card sx={{ height: '100%', borderTop: '4px solid #4caf50' }}>
                             <CardContent>
                                 <Typography color="text.secondary" gutterBottom>Economia Anual</Typography>
-                                <Typography variant="h5" fontWeight="bold" color="success.main">{formatCurrency(results.annual_savings)}</Typography>
-                                <Typography variant="caption" color="text.secondary">Saving Bruto</Typography>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                    <Box>
+                                        <Typography variant="caption" color="text.secondary" display="block">Ano 1 (Líquido):</Typography>
+                                        <Typography variant="body1" fontWeight="bold" color={(results.as_is_cost_annual - (results.development_cost + results.to_be_cost_annual)) >= 0 ? "success.main" : "error.main"}>
+                                            {formatCurrency(results.as_is_cost_annual - (results.development_cost + results.to_be_cost_annual))}
+                                        </Typography>
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="caption" color="text.secondary" display="block">Ano 2+ (Bruto):</Typography>
+                                        <Typography variant="body1" fontWeight="bold" color="success.main">
+                                            {formatCurrency(results.as_is_cost_annual)}
+                                        </Typography>
+                                    </Box>
+                                </Box>
                             </CardContent>
                         </Card>
                     </Grid>
@@ -503,7 +515,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                     </Grid>
                 </Grid>
 
-                {/* DETALHAMENTO DE CUSTOS */}
+                {/* DETALHAMENTO DE CUSTOS & ESTRATÉGIA */}
                 <Grid container spacing={3} sx={{ mb: 3 }} className="pdf-section">
                     <Grid item xs={12} md={6}>
                         <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
@@ -604,85 +616,88 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                         <CalendarToday color="primary" sx={{ mr: 1 }} />
                         <Typography variant="h6" fontWeight="bold">Plano de Entrega (Roadmap Estimado)</Typography>
                     </Box>
-
-                    {loadingPlan ? (
-                        <LinearProgress />
-                    ) : (
-                        <Box sx={{ position: 'relative', mt: 2 }}>
-                            {/* Cabeçalho da Linha do Tempo */}
-                            <Box sx={{ display: 'flex', mb: 1, borderBottom: '1px solid #e0e0e0', pb: 1 }}>
-                                <Box sx={{ width: '30%', fontWeight: 'bold', color: 'text.secondary' }}>Fase / Atividade</Box>
-                                <Box sx={{ width: '20%', fontWeight: 'bold', color: 'text.secondary' }}>Responsável</Box>
-                                <Box sx={{ width: '15%', fontWeight: 'bold', color: 'text.secondary', textAlign: 'center' }}>Duração</Box>
-                                <Box sx={{ width: '35%', fontWeight: 'bold', color: 'text.secondary' }}>Cronograma (Dias Úteis)</Box>
-                            </Box>
-
-                            {/* Linhas do Gantt */}
-                            {deliveryPlan.map((item, index) => {
-                                const totalDays = deliveryPlan.reduce((acc, curr) => acc + curr.duration, 0);
-                                const totalWeeks = Math.ceil(totalDays / 5);
-                                const leftPercent = (item.start / totalDays) * 100;
-                                const widthPercent = (item.duration / totalDays) * 100;
-
-                                return (
-                                    <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 2, '&:hover': { bgcolor: '#f5f5f5' }, borderRadius: 1, p: 1 }}>
-                                        <Box sx={{ width: '30%' }}>
-                                            <Typography variant="body2" fontWeight="bold">{item.phase}</Typography>
-                                        </Box>
-                                        <Box sx={{ width: '20%' }}>
-                                            <Typography variant="caption" sx={{ bgcolor: '#e0e0e0', px: 1, py: 0.5, borderRadius: 1 }}>
-                                                {item.role}
-                                            </Typography>
-                                        </Box>
-                                        <Box sx={{ width: '15%', textAlign: 'center' }}>
-                                            <Typography variant="body2">{item.duration} dias</Typography>
-                                        </Box>
-                                        <Box sx={{ width: '35%', position: 'relative', height: 24, bgcolor: '#f0f0f0', borderRadius: 4, overflow: 'hidden' }}>
-                                            {/* Grid de Semanas no Fundo */}
-                                            <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex' }}>
-                                                {Array.from({ length: totalWeeks }).map((_, w) => (
-                                                    <Box key={w} sx={{ flex: 1, borderRight: '1px dashed #ccc', height: '100%' }} />
-                                                ))}
-                                            </Box>
-
-                                            <MuiTooltip title={`Início: Dia ${item.start} | Fim: Dia ${item.start + item.duration}`}>
-                                                <Box
-                                                    sx={{
-                                                        position: 'absolute',
-                                                        left: `${leftPercent}%`,
-                                                        width: `${widthPercent}%`,
-                                                        height: '100%',
-                                                        bgcolor: item.color,
-                                                        borderRadius: 4,
-                                                        zIndex: 1,
-                                                        transition: 'width 0.5s ease-in-out'
-                                                    }}
-                                                />
-                                            </MuiTooltip>
-                                        </Box>
-                                    </Box>
-                                );
-                            })}
-
-                            {/* Legenda de Semanas */}
-                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-                                <Box sx={{ width: '35%', display: 'flex', justifyContent: 'space-between' }}>
-                                    {Array.from({ length: Math.min(Math.ceil(deliveryPlan.reduce((a, b) => a + b.duration, 0) / 5), 8) }).map((_, i) => (
-                                        <Typography key={i} variant="caption" color="text.secondary" sx={{ flex: 1, textAlign: 'center' }}>
-                                            Sem {i + 1}
-                                        </Typography>
-                                    ))}
+                    {
+                        loadingPlan ? (
+                            <LinearProgress />
+                        ) : (
+                            <Box sx={{ position: 'relative', mt: 2 }}>
+                                {/* Cabeçalho da Linha do Tempo */}
+                                <Box sx={{ display: 'flex', mb: 1, borderBottom: '1px solid #e0e0e0', pb: 1 }}>
+                                    <Box sx={{ width: '30%', fontWeight: 'bold', color: 'text.secondary' }}>Fase / Atividade</Box>
+                                    <Box sx={{ width: '20%', fontWeight: 'bold', color: 'text.secondary' }}>Responsável</Box>
+                                    <Box sx={{ width: '15%', fontWeight: 'bold', color: 'text.secondary', textAlign: 'center' }}>Duração</Box>
+                                    <Box sx={{ width: '35%', fontWeight: 'bold', color: 'text.secondary' }}>Cronograma (Dias Úteis)</Box>
                                 </Box>
-                            </Box>
 
-                            <Box sx={{ mt: 2, textAlign: 'right' }}>
-                                <Typography variant="caption" color="text.secondary">
-                                    * Estimativa em dias úteis baseada na alocação de horas por perfil. Total Estimado: <strong>{deliveryPlan.reduce((a, b) => a + b.duration, 0)} dias úteis</strong>.
-                                </Typography>
-                            </Box>
-                        </Box>
-                    )}
-                </Paper>
+                                {/* Linhas do Gantt */}
+                                {
+                                    deliveryPlan.map((item, index) => {
+                                        const totalDays = deliveryPlan.reduce((acc, curr) => acc + curr.duration, 0);
+                                        const totalWeeks = Math.ceil(totalDays / 5);
+                                        const leftPercent = (item.start / totalDays) * 100;
+                                        const widthPercent = (item.duration / totalDays) * 100;
+
+                                        return (
+                                            <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 2, '&:hover': { bgcolor: '#f5f5f5' }, borderRadius: 1, p: 1 }}>
+                                                <Box sx={{ width: '30%' }}>
+                                                    <Typography variant="body2" fontWeight="bold">{item.phase}</Typography>
+                                                </Box>
+                                                <Box sx={{ width: '20%' }}>
+                                                    <Typography variant="caption" sx={{ bgcolor: '#e0e0e0', px: 1, py: 0.5, borderRadius: 1 }}>
+                                                        {item.role}
+                                                    </Typography>
+                                                </Box>
+                                                <Box sx={{ width: '15%', textAlign: 'center' }}>
+                                                    <Typography variant="body2">{item.duration} dias</Typography>
+                                                </Box>
+                                                <Box sx={{ width: '35%', position: 'relative', height: 24, bgcolor: '#f0f0f0', borderRadius: 4, overflow: 'hidden' }}>
+                                                    {/* Grid de Semanas no Fundo */}
+                                                    <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, display: 'flex' }}>
+                                                        {Array.from({ length: totalWeeks }).map((_, w) => (
+                                                            <Box key={w} sx={{ flex: 1, borderRight: '1px dashed #ccc', height: '100%' }} />
+                                                        ))}
+                                                    </Box>
+
+                                                    <MuiTooltip title={`Início: Dia ${item.start} | Fim: Dia ${item.start + item.duration}`}>
+                                                        <Box
+                                                            sx={{
+                                                                position: 'absolute',
+                                                                left: `${leftPercent}%`,
+                                                                width: `${widthPercent}%`,
+                                                                height: '100%',
+                                                                bgcolor: item.color,
+                                                                borderRadius: 4,
+                                                                zIndex: 1,
+                                                                transition: 'width 0.5s ease-in-out'
+                                                            }}
+                                                        />
+                                                    </MuiTooltip>
+                                                </Box>
+                                            </Box>
+                                        );
+                                    })
+                                }
+
+                                {/* Legenda de Semanas */}
+                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                                    <Box sx={{ width: '35%', display: 'flex', justifyContent: 'space-between' }}>
+                                        {Array.from({ length: Math.min(Math.ceil(deliveryPlan.reduce((a, b) => a + b.duration, 0) / 5), 8) }).map((_, i) => (
+                                            <Typography key={i} variant="caption" color="text.secondary" sx={{ flex: 1, textAlign: 'center' }}>
+                                                Sem {i + 1}
+                                            </Typography>
+                                        ))}
+                                    </Box>
+                                </Box>
+
+                                <Box sx={{ mt: 2, textAlign: 'right' }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                        * Estimativa em dias úteis baseada na alocação de horas por perfil. Total Estimado: <strong>{deliveryPlan.reduce((a, b) => a + b.duration, 0)} dias úteis</strong>.
+                                    </Typography>
+                                </Box>
+                            </Box >
+                        )
+                    }
+                </Paper >
 
                 {/* PROPOSTA DE SUSTENTAÇÃO - NEW SECTION */}
                 <Paper className="pdf-section" elevation={3} sx={{ p: 3, mb: 3, borderRadius: 2, borderTop: '4px solid #00bcd4' }}>
@@ -787,7 +802,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                             </Grid>
                         </Grid>
                     </Paper>
-                </Paper>
+                </Paper >
 
                 {/* MEMÓRIA DE CÁLCULO - NEW SECTION */}
                 <Paper className="pdf-section" elevation={3} sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: '#fff3e0' }}>
@@ -888,7 +903,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                             </Box>
                         </Grid>
                     </Grid>
-                </Paper>
+                </Paper >
 
                 <Box className="pdf-section" sx={{ mt: 4, textAlign: 'center' }}>
                     <Typography variant="caption" color="text.secondary">
