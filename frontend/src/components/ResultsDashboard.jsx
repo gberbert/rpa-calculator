@@ -438,7 +438,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                     <Grid item xs={12} md={3}>
                         <Card sx={{ height: '100%', borderTop: '4px solid #2196f3' }}>
                             <CardContent>
-                                <Typography color="text.secondary" gutterBottom>Custo TO-BE (Anual)</Typography>
+                                <Typography color="text.secondary" gutterBottom>Custo TO-BE (OPEX) (Anual)</Typography>
                                 <Typography variant="h5" fontWeight="bold">{formatCurrency(results.to_be_cost_annual)}</Typography>
                                 <Typography variant="caption" color="text.secondary">Sustentação + Infra</Typography>
                             </CardContent>
