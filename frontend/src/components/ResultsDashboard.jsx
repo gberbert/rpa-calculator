@@ -391,7 +391,6 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                             </Typography>
                             <Box sx={{ mt: 2, display: 'flex', gap: 1 }}>
                                 <Chip label={`Complexidade: ${getComplexityLabel(complexity.classification)}`} color={getComplexityColor(complexity.classification)} sx={{ fontWeight: 'bold' }} />
-                                <Chip label={`Score: ${complexity.total_points} pts`} variant="outlined" />
                             </Box>
                         </Grid>
                         <Grid item xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
@@ -440,7 +439,27 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                             <CardContent>
                                 <Typography color="text.secondary" gutterBottom>Custo TO-BE (OPEX) (Anual)</Typography>
                                 <Typography variant="h5" fontWeight="bold">{formatCurrency(results.to_be_cost_annual)}</Typography>
-                                <Typography variant="caption" color="text.secondary">Sustentação + Infra</Typography>
+                                <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span>Licenças:</span> <strong>{formatCurrency(results.cost_breakdown.licenseCost)}</strong>
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span>Infra:</span> <strong>{formatCurrency(results.cost_breakdown.infraCost)}</strong>
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span>Sustentação:</span> <strong>{formatCurrency(results.cost_breakdown.maintenanceCost)}</strong>
+                                    </Typography>
+                                    {strategic.genAiCost > 0 && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span>GenAI:</span> <strong>{formatCurrency(strategic.genAiCost * 12)}</strong>
+                                        </Typography>
+                                    )}
+                                    {strategic.idpCost > 0 && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span>IDP:</span> <strong>{formatCurrency(strategic.idpCost * 12)}</strong>
+                                        </Typography>
+                                    )}
+                                </Box>
                             </CardContent>
                         </Card>
                     </Grid>
