@@ -100,7 +100,9 @@ export default function Settings() {
                 strategic_config: actualData.strategic_config || {
                     genai_cost_per_transaction: 0.05,
                     idp_license_annual: 5000,
-                    turnover_replacement_cost_percentage: 20
+                    idp_license_annual: 5000,
+                    turnover_replacement_cost_percentage: 20,
+                    roi_accuracy_percentage: 100
                 }
             };
 
@@ -143,7 +145,8 @@ export default function Settings() {
         const cleanStrategic = {
             genai_cost_per_transaction: Number(data.strategic_config?.genai_cost_per_transaction) || 0.05,
             idp_license_annual: Number(data.strategic_config?.idp_license_annual) || 5000,
-            turnover_replacement_cost_percentage: Number(data.strategic_config?.turnover_replacement_cost_percentage) || 20
+            turnover_replacement_cost_percentage: Number(data.strategic_config?.turnover_replacement_cost_percentage) || 20,
+            roi_accuracy_percentage: Number(data.strategic_config?.roi_accuracy_percentage) || 100
         };
 
         return {
@@ -569,6 +572,18 @@ export default function Settings() {
                                 ...prev,
                                 strategic_config: { ...prev.strategic_config, turnover_replacement_cost_percentage: e.target.value }
                             }))}
+                            InputProps={{ endAdornment: <Typography variant="caption" sx={{ ml: 1 }}>%</Typography> }}
+                        />
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                        <TextField
+                            fullWidth label="Deflator de Acurácia (ROI)" type="number"
+                            value={settings.strategic_config?.roi_accuracy_percentage || 100}
+                            onChange={(e) => setSettings(prev => ({
+                                ...prev,
+                                strategic_config: { ...prev.strategic_config, roi_accuracy_percentage: e.target.value }
+                            }))}
+                            helperText="Percentual de confiança aplicado à economia projetada (ex: 90%)"
                             InputProps={{ endAdornment: <Typography variant="caption" sx={{ ml: 1 }}>%</Typography> }}
                         />
                     </Grid>

@@ -10,12 +10,13 @@ class ProjectService {
 
     async createProject(projectData) {
         try {
-            const { projectName, ownerUid, inputs, complexity, strategic, maintenance } = projectData;
+            const { projectName, ownerUid, responsibleName, inputs, complexity, strategic, maintenance } = projectData;
             const results = await this.financialService.calculateFullROI(inputs, complexity, strategic, maintenance);
 
             const project = {
                 project_name: projectName,
                 owner_uid: ownerUid || 'anonymous',
+                responsible_name: responsibleName || 'Não informado',
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
                 inputs_as_is: {

@@ -25,7 +25,7 @@ import {
 } from '@mui/icons-material';
 import { settingsService } from '../../services/api';
 
-export default function Step5Review({ data }) {
+export default function Step5Review({ data, hideInstructions = false }) {
     const [settings, setSettings] = useState(null);
 
     useEffect(() => {
@@ -433,21 +433,23 @@ export default function Step5Review({ data }) {
                 </Grid>
             </Paper>
 
-            <Box
-                sx={{
-                    mt: 3,
-                    p: 2,
-                    backgroundColor: 'success.lighter',
-                    borderLeft: 4,
-                    borderColor: 'success.main',
-                    borderRadius: 1,
-                }}
-            >
-                <Typography variant="body2" color="success.dark">
-                    <strong>Tudo pronto!</strong> Clique em "Calcular ROI" para processar os dados
-                    e visualizar os resultados financeiros da automação.
-                </Typography>
-            </Box>
+            {!hideInstructions && (
+                <Box
+                    sx={{
+                        mt: 3,
+                        p: 2,
+                        backgroundColor: 'success.lighter',
+                        borderLeft: 4,
+                        borderColor: 'success.main',
+                        borderRadius: 1,
+                    }}
+                >
+                    <Typography variant="body2" color="success.dark">
+                        <strong>Tudo pronto!</strong> Clique em "Calcular ROI" para processar os dados
+                        e visualizar os resultados financeiros da automação.
+                    </Typography>
+                </Box>
+            )}
         </Box>
     );
 }

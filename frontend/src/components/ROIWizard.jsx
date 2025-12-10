@@ -118,7 +118,7 @@ export default function ROIWizard({ onComplete }) {
                 projectName: formData.projectName,
                 ownerUid: finalOwnerUid,
                 // Opcional: Você pode salvar o responsibleName no banco se quiser exibir depois
-                // responsible_name: formData.responsibleName, 
+                responsible_name: formData.responsibleName,
                 inputs: {
                     volume: parseFloat(formData.inputs.volume) || 0,
                     aht: parseFloat(formData.inputs.aht) || 0,

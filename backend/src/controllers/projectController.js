@@ -11,7 +11,7 @@ class ProjectController {
      */
     async createProject(req, res) {
         try {
-            const { projectName, ownerUid, inputs, complexity, strategic } = req.body;
+            const { projectName, ownerUid, responsible_name, inputs, complexity, strategic } = req.body;
 
             // Validação básica
             if (!projectName || !inputs || !complexity) {
@@ -45,6 +45,7 @@ class ProjectController {
             const project = await projectService.createProject({
                 projectName,
                 ownerUid,
+                responsibleName: responsible_name,
                 inputs,
                 complexity,
                 strategic,

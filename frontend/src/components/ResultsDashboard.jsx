@@ -7,7 +7,7 @@ import {
     TrendingUp, AttachMoney, Schedule, Assessment, Refresh, Download, Info, Description, CheckCircle, Settings, Psychology, CalendarToday, SupportAgent, AccessTime, Business, Engineering, Security
 } from '@mui/icons-material';
 import {
-    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, ReferenceLine
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, ReferenceLine, ReferenceDot, Label
 } from 'recharts';
 
 // Importações para PDF
@@ -17,6 +17,8 @@ import jsPDF from 'jspdf';
 // 1. IMPORTAR O CONTEXTO DE AUTH E API
 import { useAuth } from '../contexts/AuthContext';
 import { settingsService } from '../services/api';
+import Step5Review from './steps/Step5Review';
+
 
 export default function ResultsDashboard({ data, onNewCalculation }) {
     const dashboardRef = useRef(null);
@@ -140,6 +142,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
 
     // Lógica para exibir o nome correto do responsável
     const getResponsibleName = () => {
+        if (data.responsible_name) return data.responsible_name;
         if (currentUser && data.owner_uid === currentUser.uid) {
             return currentUser.email;
         }
@@ -154,9 +157,20 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
     const maintenanceAnalysis = data.maintenance_analysis || {};
 
     // Dados gráficos
+    // Calcular Custeio TO-BE Ponderado (Deflator de acurácia)
+    // Se não houver economia bruta (savings < 0), o ponderado tende ao TO-BE normal ou pior.
+    // Mas a lógica é: Weighted Savings = GrossSavings * Accuracy.
+    // Weighted ToBe = AsIs - WeightedSavings.
+    const accuracyFactor = (strategic.accuracyPercentage || 100) / 100;
+    const grossSavings = results.as_is_cost_annual - results.to_be_cost_annual;
+    const weightedSavings = grossSavings * accuracyFactor;
+    const weightedToBeAnnual = results.as_is_cost_annual - weightedSavings;
+
+    // Dados achatados para o gráfico de colunas (3 colunas distintas)
     const costComparisonData = [
-        { name: 'AS-IS (Atual)', Anual: results.as_is_cost_annual, Mensal: results.as_is_cost_annual / 12 },
-        { name: 'TO-BE (Automação)', Anual: results.to_be_cost_annual, Mensal: results.to_be_cost_annual / 12 },
+        { name: 'AS-IS (Atual)', value: results.as_is_cost_annual, color: '#f44336' }, // Vermelho para Custo Alto
+        { name: 'TO-BE (Estimado)', value: results.to_be_cost_annual, color: '#2196f3' }, // Azul para Custo Otimizado
+        { name: 'TO-BE (Ponderado)', value: weightedToBeAnnual, color: '#ff9800' } // Laranja para Ponderado (Risco/Acurácia)
     ];
 
     const toBeCostBreakdown = [
@@ -165,8 +179,8 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
         { name: 'Manutenção', value: results.cost_breakdown.maintenanceCost },
     ];
 
-    if (strategic.genAiCost > 0) toBeCostBreakdown.push({ name: 'GenAI (Tokens)', value: strategic.genAiCost * 12 });
-    if (strategic.idpCost > 0) toBeCostBreakdown.push({ name: 'IDP (OCR)', value: strategic.idpCost * 12 });
+    if (strategic.genAiCost > 0) toBeCostBreakdown.push({ name: 'GenAI (Tokens)', value: strategic.genAiCost });
+    if (strategic.idpCost > 0) toBeCostBreakdown.push({ name: 'IDP (OCR)', value: strategic.idpCost });
 
     // --- LÓGICA DO PAYBACK (Breakeven Chart) ---
     // Gráfico de Custo Acumulado: AS-IS vs TO-BE
@@ -178,15 +192,18 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
     // Projetar 24 meses ou até o payback + 6 meses
     const monthsToProject = Math.max(Math.ceil(results.payback_months || 0) + 6, 18);
 
+    const monthlyToBeWeighted = weightedToBeAnnual / 12;
+
     for (let month = 0; month <= monthsToProject; month++) {
         const cumulativeAsIs = monthlyAsIs * month;
         const cumulativeToBe = capex + (monthlyToBe * month);
+        const cumulativeToBeWeighted = capex + (monthlyToBeWeighted * month);
 
         paybackData.push({
             month: month,
             asIs: cumulativeAsIs,
             toBe: cumulativeToBe,
-            // Mantendo o fluxo de caixa líquido se quiser usar
+            toBeWeighted: cumulativeToBeWeighted,
             netCashFlow: cumulativeAsIs - cumulativeToBe
         });
     }
@@ -329,6 +346,20 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
         }
     };
 
+    const reviewData = {
+        projectName: data.project_name,
+        responsibleName: getResponsibleName(),
+        ownerUid: data.owner_uid,
+        inputs: {
+            volume: data.inputs_as_is.volume,
+            aht: data.inputs_as_is.aht,
+            fteCost: data.inputs_as_is.fte_cost,
+            errorRate: data.inputs_as_is.error_rate
+        },
+        complexity: data.complexity_input || {},
+        strategic: data.strategic_input || {}
+    };
+
     return (
         <Box sx={{ p: 3, bgcolor: '#f5f7fa', minHeight: '100vh' }}>
             {/* BARRA DE AÇÕES SUPERIOR */}
@@ -463,12 +494,12 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                     </Typography>
                                     {strategic.genAiCost > 0 && (
                                         <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span>GenAI:</span> <strong>{formatCurrency(strategic.genAiCost * 12)}</strong>
+                                            <span>GenAI:</span> <strong>{formatCurrency(strategic.genAiCost)}</strong>
                                         </Typography>
                                     )}
                                     {strategic.idpCost > 0 && (
                                         <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span>IDP:</span> <strong>{formatCurrency(strategic.idpCost * 12)}</strong>
+                                            <span>IDP:</span> <strong>{formatCurrency(strategic.idpCost)}</strong>
                                         </Typography>
                                     )}
                                 </Box>
@@ -486,11 +517,19 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                             <ResponsiveContainer width="100%" height="90%">
                                 <BarChart data={costComparisonData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                                     <CartesianGrid strokeDasharray="3 3" />
-                                    <XAxis dataKey="name" />
+                                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                                     <YAxis tickFormatter={(val) => `R$ ${(val / 1000).toFixed(0)}k`} />
                                     <Tooltip formatter={(value) => formatCurrency(value)} />
-                                    <Legend />
-                                    <Bar dataKey="Anual" fill="#1a237e" name="Custo Anual" radius={[4, 4, 0, 0]} />
+                                    <Legend payload={[
+                                        { value: 'AS-IS (Atual)', type: 'square', id: 'ID01', color: '#f44336' },
+                                        { value: 'TO-BE (Estimado)', type: 'square', id: 'ID02', color: '#2196f3' },
+                                        { value: 'TO-BE (Ponderado)', type: 'square', id: 'ID03', color: '#ff9800' }
+                                    ]} />
+                                    <Bar dataKey="value" name="Custo Anual" radius={[4, 4, 0, 0]} barSize={60}>
+                                        {costComparisonData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
                         </Paper>
@@ -508,7 +547,28 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                     <Tooltip formatter={(value) => formatCurrency(value)} />
                                     <Legend />
                                     <Line type="monotone" dataKey="asIs" stroke="#f44336" strokeWidth={2} name="Custo Acumulado AS-IS" dot={false} />
-                                    <Line type="monotone" dataKey="toBe" stroke="#2196f3" strokeWidth={2} name="Custo Acumulado TO-BE" dot={false} />
+                                    <Line type="monotone" dataKey="toBe" stroke="#2196f3" strokeWidth={2} name="Custo Acumulado TO-BE" dot={false} strokeDasharray="5 5" />
+                                    <Line type="monotone" dataKey="toBeWeighted" stroke="#ff9800" strokeWidth={3} name="Custo TO-BE (Ponderado)" dot={false} />
+                                    {/* Adicionar Balão (Label) na última posição do TO-BE Ponderado */}
+                                    {paybackData.length > 0 && (
+                                        <ReferenceDot
+                                            x={paybackData[paybackData.length - 1].month}
+                                            y={paybackData[paybackData.length - 1].toBeWeighted}
+                                            r={5}
+                                            fill="#ff9800"
+                                            stroke="none"
+                                        >
+                                            <Label
+                                                value="Deflator de Acuracidade"
+                                                position="top"
+                                                offset={15}
+                                                dx={-60}
+                                                fill="#ff9800"
+                                                fontWeight="bold"
+                                                style={{ fontSize: '12px', backgroundColor: 'white' }}
+                                            />
+                                        </ReferenceDot>
+                                    )}
                                 </LineChart>
                             </ResponsiveContainer>
                         </Paper>
@@ -555,7 +615,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                         primary="Inteligência Artificial (GenAI)"
                                         secondary={
                                             strategic.genAiCost > 0
-                                                ? `Custo estimado: ${formatCurrency(strategic.genAiCost * 12)}/ano`
+                                                ? `Custo estimado: ${formatCurrency(strategic.genAiCost)}/ano`
                                                 : strategicInput.cognitiveLevel === 'creation'
                                                     ? 'Habilitado (Custo Zero/Incluso)'
                                                     : 'Regra Fixa (RPA Puro)'
@@ -881,19 +941,31 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                             <Typography variant="subtitle2" fontWeight="bold" gutterBottom>3. Indicadores Financeiros</Typography>
                             <Box sx={{ p: 2, bgcolor: '#f5f5f5', borderRadius: 1, border: '1px solid #e0e0e0' }}>
                                 <Grid container spacing={2}>
-                                    <Grid item xs={12} md={4}>
+                                    <Grid item xs={12} md={3}>
                                         <Typography variant="caption" display="block" color="text.secondary">ROI (Retorno sobre Investimento)</Typography>
                                         <Typography variant="body2" fontWeight="bold">
                                             <code>(Economia Anual / Custo AS-IS) × 100</code>
                                         </Typography>
                                     </Grid>
-                                    <Grid item xs={12} md={4}>
-                                        <Typography variant="caption" display="block" color="text.secondary">Economia Anual (Saving)</Typography>
+                                    <Grid item xs={12} md={3}>
+                                        <Typography variant="caption" display="block" color="text.secondary">Economia Anual (Bruta)</Typography>
                                         <Typography variant="body2" fontWeight="bold">
                                             <code>Custo AS-IS - Custo TO-BE</code>
                                         </Typography>
                                     </Grid>
-                                    <Grid item xs={12} md={4}>
+                                    <Grid item xs={12} md={3}>
+                                        <Typography variant="caption" display="block" color="text.secondary">Acurácia (Deflator)</Typography>
+                                        <Typography variant="body2" fontWeight="bold">
+                                            <code>{strategic.accuracyPercentage || 100}%</code>
+                                        </Typography>
+                                    </Grid>
+                                    <Grid item xs={12} md={3}>
+                                        <Typography variant="caption" display="block" color="text.secondary">ROI / Saving (Ajustado)</Typography>
+                                        <Typography variant="body2" fontWeight="bold">
+                                            <code>Bruto × {((strategic.accuracyPercentage || 100) / 100).toFixed(2)}</code>
+                                        </Typography>
+                                    </Grid>
+                                    <Grid item xs={12} md={3}>
                                         <Typography variant="caption" display="block" color="text.secondary">Payback (Retorno)</Typography>
                                         <Typography variant="body2" fontWeight="bold">
                                             <code>Mês onde Economia Acumulada {'>'} CAPEX</code>
@@ -904,6 +976,13 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                         </Grid>
                     </Grid>
                 </Paper >
+
+                {/* DETALHAMENTO DOS PARÂMETROS (WIZARD STEP 5) */}
+                <Box className="pdf-section" sx={{ mb: 3 }}>
+                    <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
+                        <Step5Review data={reviewData} hideInstructions={true} />
+                    </Paper>
+                </Box>
 
                 <Box className="pdf-section" sx={{ mt: 4, textAlign: 'center' }}>
                     <Typography variant="caption" color="text.secondary">

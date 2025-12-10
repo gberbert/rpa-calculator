@@ -194,7 +194,8 @@ class FinancialService {
         const strategicConfig = config.strategic_config || {
             genai_cost_per_transaction: 0.05,
             idp_license_annual: 5000,
-            turnover_replacement_cost_percentage: 20
+            turnover_replacement_cost_percentage: 20,
+            roi_accuracy_percentage: 100 // Padrão 100% (sem deflator)
         };
         const maintenanceConfig = config.maintenance_config || {
             fte_monthly_cost: 8000,
@@ -296,10 +297,22 @@ class FinancialService {
 
         const totalToBeCost = annualInfraCost + maintenanceCost + genAiCost + idpCost;
 
-        // 6. ROI e Payback
-        const annualSavings = totalAsIsCost - totalToBeCost;
-        // ROI = (Economia Anual / Custo AS-IS Anual) * 100
+        // 6. ROI e Payback (com Deflator de Acurácia)
+        // Deflator Global (Configuração): Reduz a economia projetada para ser mais conservador
+        const accuracyPct = strategicConfig.roi_accuracy_percentage || 100;
+        const accuracyFactor = accuracyPct / 100;
+
+        // Economia bruta (Teórica)
+        const grossAnnualSavings = totalAsIsCost - totalToBeCost;
+
+        // Economia Ajustada (Acurácia) - Usada para ROI e Payback
+        const annualSavings = grossAnnualSavings * accuracyFactor;
+
+        // ROI = (Economia Ajustada / Custo AS-IS Anual) * 100
+        // Nota: Alguns modelos usam (Savings / Cost) - 1. Aqui mantemos (Benefit / Cost) simples ou (Net / Cost).
+        // Usando o padrão anterior: (Net Savings / AS-IS Total)
         const roi = (annualSavings / totalAsIsCost) * 100;
+
         const monthlySavings = annualSavings / 12;
         const paybackMonths = this.calculatePayback(developmentCost, monthlySavings);
 
@@ -314,7 +327,8 @@ class FinancialService {
                 turnoverCost,
                 genAiCost,
                 idpCost,
-                slaMultiplier: strategic.needs24h ? 3 : 1
+                slaMultiplier: strategic.needs24h ? 3 : 1,
+                accuracyPercentage: accuracyPct
             },
             maintenance: {
                 monthlyCost: maintenanceCost / 12,
@@ -344,6 +358,7 @@ class FinancialService {
             roi: {
                 year1: Math.round(roi * 100) / 100,
                 annualSavings: Math.round(annualSavings * 100) / 100,
+                grossAnnualSavings: Math.round(grossAnnualSavings * 100) / 100,
                 monthlySavings: Math.round(monthlySavings * 100) / 100,
                 paybackMonths,
             },
