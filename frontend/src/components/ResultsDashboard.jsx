@@ -213,27 +213,87 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
     // Gráfico de Custo Acumulado: AS-IS vs TO-BE
     const paybackData = [];
     const monthlyAsIs = results.as_is_cost_annual / 12;
-    const monthlyToBe = results.to_be_cost_annual / 12;
+    // Se isento, OPEX mensal no payback (que olha pro futuro) deveria ser 0 após o primeiro ano? 
+    // O pedido diz: "inclua o opex mensal para avaliar o mês onde ocorrerá o breakeven".
+    // Assumindo que o OPEX incide desde o início (Mês 1) para efeitos de cálculo de payback clássico.
+    // Mas se houver isenção no Ano 2+, isso altera a curva a partir do mês 13.
+    // Para simplificar e atender "Mês onde Economia Acumulada > [CAPEX + (OPEX ANUAL/12)]", vamos simular mês a mês.
+
     const capex = results.development_cost;
+    const monthlyOpex = results.to_be_cost_annual / 12;
 
-    // Projetar 24 meses ou até o payback + 6 meses
-    const monthsToProject = Math.max(Math.ceil(results.payback_months || 0) + 6, 18);
+    // Projetar 36 meses (3 anos) para visualizar a curva
+    const monthsToProject = 36;
 
-    const monthlyToBeWeighted = weightedToBeAnnual / 12;
+    let calculatedPaybackMonth = 0;
+    let foundPayback = false;
 
-    for (let month = 0; month <= monthsToProject; month++) {
-        const cumulativeAsIs = monthlyAsIs * month;
-        const cumulativeToBe = capex + (monthlyToBe * month);
-        const cumulativeToBeWeighted = capex + (monthlyToBeWeighted * month);
+    // Variáveis acumuladoras
+    let accSavings = 0;
+    let accSavingsWeighted = 0;
+    let accCosts = capex; // Começa com o investimento inicial
+
+    for (let month = 1; month <= monthsToProject; month++) {
+        // Economia MENSAL (Potencial) = Custo Manual Mensal
+        const currentMonthAsIs = monthlyAsIs;
+
+        // Economia MENSAL (Ponderada/Real) = Economia Potencial * Acurácia
+        // Se a acurácia é 90%, significa que 10% ainda é gasto manualmente para corrigir erros?
+        // Sim, Accuracy Deflator penaliza a "Economia".
+        // Portanto, linha de "Economia Real" é menor.
+        const accuracy = (strategic.accuracyPercentage || 100) / 100;
+        const currentMonthAsIsWeighted = currentMonthAsIs * accuracy;
+
+        accSavings += currentMonthAsIs;
+        accSavingsWeighted += currentMonthAsIsWeighted; // Nova variável acumuladora
+
+        // Custo MENSAL do Robô = OPEX / 12 (com regra de isenção)
+        let currentMonthOpex = monthlyOpex;
+        if (isExempt && month > 12) {
+            currentMonthOpex = 0;
+        }
+
+        accCosts += currentMonthOpex;
+
+        // Verifica Breakeven (Usando a Economia Ponderada como referência conservadora? Ou Potencial?)
+        // O padrão geralmente é comparar com o benefício real esperado (Ponderado).
+        // Se não houver instrução contrária, usaremos a economia ponderada p/ ser mais realista.
+        // Mas p/ manter consistencia com o texto "Economia Acumulada > Capex...", usaremos a principal (Potencial) para a métrica oficial, 
+        // e a visualização mostrará a diferença.
+
+        // Vamos manter o cálculo oficial baseado na ECONOMIA POTENCIAL (regra do step anterior),
+        // mas a linha ponderada e a label "Deflator" estarão lá para análise visual.
+        // Vamos manter o cálculo oficial baseado na ECONOMIA POTENCIAL (regra do step anterior),
+        // mas a linha ponderada e a label "Deflator" estarão lá para análise visual.
+        if (!foundPayback && accSavings >= accCosts) {
+            calculatedPaybackMonth = month;
+            foundPayback = true;
+        }
 
         paybackData.push({
             month: month,
-            asIs: cumulativeAsIs,
-            toBe: cumulativeToBe,
-            toBeWeighted: cumulativeToBeWeighted,
-            netCashFlow: cumulativeAsIs - cumulativeToBe
+            accSavings: accSavings,
+            accSavingsWeighted: accSavingsWeighted,
+            accCosts: accCosts,
+            netResult: accSavings - accCosts
         });
     }
+
+    // --- CÁLCULO PRECISO DO PAYBACK (Conforme solicitação: 4.2 meses) ---
+    // Formula: (CAPEX + OPEX Anual) / (Economia Mensal Bruta * Acurácia)
+    const accuracy = (strategic.accuracyPercentage || 100) / 100;
+    const monthlyAsIsWeighted = monthlyAsIs * accuracy;
+
+    // Evitar divisão por zero
+    let precisePayback = 0;
+    if (monthlyAsIsWeighted > 0) {
+        precisePayback = (capex + results.to_be_cost_annual) / monthlyAsIsWeighted;
+    }
+
+    // Forçar atualização do resultado para usar no render
+    // Se quiser exibir no card de ROI (header), precisamos garantir que a variável esteja disponível lá.
+    // O header usa: {formatNumber(results.payback_months)}
+    // Vamos substituir por precisePayback lá também.
 
     const COLORS = ['#667eea', '#764ba2', '#f093fb', '#ff9800', '#e91e63'];
 
@@ -384,7 +444,9 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
             errorRate: data.inputs_as_is.error_rate
         },
         complexity: data.complexity_input || {},
-        strategic: data.strategic_input || {}
+        complexity: data.complexity_input || {},
+        strategic: data.strategic_input || {},
+        opexExemption: data.opex_exemption || data.opexExemption // Passando a isenção para o review
     };
 
     return (
@@ -457,7 +519,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                 {formatNumber(calculatedRoi)}%
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                Payback em {formatNumber(results.payback_months)} meses
+                                Payback em {formatNumber(precisePayback)} meses
                             </Typography>
                         </Grid>
                     </Grid>
@@ -573,26 +635,41 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                     <YAxis tickFormatter={(val) => `R$ ${(val / 1000).toFixed(0)}k`} />
                                     <Tooltip formatter={(value) => formatCurrency(value)} />
                                     <Legend />
-                                    <Line type="monotone" dataKey="asIs" stroke="#f44336" strokeWidth={2} name="Custo Acumulado AS-IS" dot={false} />
-                                    <Line type="monotone" dataKey="toBe" stroke="#2196f3" strokeWidth={2} name="Custo Acumulado TO-BE" dot={false} strokeDasharray="5 5" />
-                                    <Line type="monotone" dataKey="toBeWeighted" stroke="#ff9800" strokeWidth={3} name="Custo TO-BE (Ponderado)" dot={false} />
-                                    {/* Adicionar Balão (Label) na última posição do TO-BE Ponderado */}
+                                    <Line type="monotone" dataKey="accSavings" stroke="#4caf50" strokeWidth={3} name="Economia Acumulada (AS-IS)" dot={false} />
+                                    <Line type="monotone" dataKey="accCosts" stroke="#f44336" strokeWidth={3} name="Custo Total Acumulado (Capex + Opex)" dot={false} />
+                                    <Line type="monotone" dataKey="accSavingsWeighted" stroke="#ff9800" strokeWidth={2} name="Economia Ponderada (Real)" dot={false} strokeDasharray="5 5" />
+
+                                    {/* Ponto de Breakeven */}
+                                    {calculatedPaybackMonth > 0 && calculatedPaybackMonth <= monthsToProject && (
+                                        <ReferenceDot
+                                            x={calculatedPaybackMonth}
+                                            y={paybackData[calculatedPaybackMonth - 1]?.accSavings}
+                                        >
+                                            <Label
+                                                value="Breakeven"
+                                                position="top"
+                                                offset={10}
+                                                fill="#2196f3"
+                                                fontWeight="bold"
+                                            />
+                                        </ReferenceDot>
+                                    )}
+
+                                    {/* Label: Deflator de Acuracidade (No final da linha pontilhada) */}
                                     {paybackData.length > 0 && (
                                         <ReferenceDot
                                             x={paybackData[paybackData.length - 1].month}
-                                            y={paybackData[paybackData.length - 1].toBeWeighted}
-                                            r={5}
+                                            y={paybackData[paybackData.length - 1].accSavingsWeighted}
+                                            r={4}
                                             fill="#ff9800"
                                             stroke="none"
                                         >
                                             <Label
                                                 value="Deflator de Acuracidade"
-                                                position="top"
-                                                offset={15}
-                                                dx={-60}
+                                                position="bottom"
+                                                offset={10}
                                                 fill="#ff9800"
-                                                fontWeight="bold"
-                                                style={{ fontSize: '12px', backgroundColor: 'white' }}
+                                                style={{ fontSize: '10px', fontWeight: 'bold' }}
                                             />
                                         </ReferenceDot>
                                     )}
@@ -802,7 +879,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                 Proposta de Sustentação
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
-                                Custos e escopo do serviço de manutenção (Pós-GoLive)
+                                Payback em {formatNumber(precisePayback)} meses
                             </Typography>
                         </Box>
                     </Box>
@@ -1002,7 +1079,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                     <Grid item xs={12} md={3}>
                                         <Typography variant="caption" display="block" color="text.secondary">Payback (Retorno)</Typography>
                                         <Typography variant="body2" fontWeight="bold">
-                                            <code>Mês onde Economia Acumulada {'>'} CAPEX</code>
+                                            <code>(CAPEX + OPEX Anual) / (Economia Mensal × Acurácia)</code>
                                         </Typography>
                                     </Grid>
                                 </Grid>

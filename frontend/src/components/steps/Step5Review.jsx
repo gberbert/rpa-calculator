@@ -185,6 +185,14 @@ export default function Step5Review({ data, hideInstructions = false }) {
                             {data.responsibleName || data.ownerUid || 'Não informado'}
                         </Typography>
                     </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <Typography variant="caption" color="text.secondary">
+                            Isenção de OPEX (Ano 2+)
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.opexExemption === 'isento' ? 'Isento' : data.opexExemption === 'nao_isento' ? 'Não Isento' : 'Isento (Padrão)'}
+                        </Typography>
+                    </Grid>
                 </Grid>
             </Paper>
 
@@ -216,6 +224,14 @@ export default function Step5Review({ data, hideInstructions = false }) {
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
                         <Typography variant="caption" color="text.secondary">
+                            Pico Sazonal
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.inputs.peakVolume ? `${data.inputs.peakVolume}%` : '0%'}
+                        </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">
                             AHT
                         </Typography>
                         <Typography variant="body1" fontWeight={500}>
@@ -228,6 +244,14 @@ export default function Step5Review({ data, hideInstructions = false }) {
                         </Typography>
                         <Typography variant="body1" fontWeight={500}>
                             {formatCurrency(data.inputs.fteCost)}/mês
+                        </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">
+                            Crescimento Anual
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.inputs.annualGrowth ? `${data.inputs.annualGrowth}%` : '0%'}
                         </Typography>
                     </Grid>
                     <Grid item xs={12} sm={6} md={3}>
@@ -296,6 +320,24 @@ export default function Step5Review({ data, hideInstructions = false }) {
                             {data.complexity.numSteps}
                         </Typography>
                     </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                        <Typography variant="caption" color="text.secondary">
+                            Uso de Licença RPA
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.complexity.useRpaLicense === 'yes' ? 'Sim' : 'Não (Custom/Python)'}
+                        </Typography>
+                    </Grid>
+                    {data.complexity.useRpaLicense === 'yes' && (
+                        <Grid item xs={12} sm={6} md={3}>
+                            <Typography variant="caption" color="text.secondary">
+                                Custo Licença (Est.)
+                            </Typography>
+                            <Typography variant="body1" fontWeight={500}>
+                                {data.complexity.rpaLicenseCost ? formatCurrency(data.complexity.rpaLicenseCost) : 'R$ 0,00'}
+                            </Typography>
+                        </Grid>
+                    )}
                 </Grid>
             </Paper>
 
@@ -343,6 +385,33 @@ export default function Step5Review({ data, hideInstructions = false }) {
                         </Typography>
                         <Typography variant="body1" fontWeight={500}>
                             {data.strategic?.needs24h ? 'Sim' : 'Não'}
+                        </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                        <Typography variant="caption" color="text.secondary">
+                            Custo do Risco (Erro)
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.strategic?.errorCost ? formatCurrency(data.strategic.errorCost) : 'R$ 0,00'}
+                        </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                        <Typography variant="caption" color="text.secondary">
+                            Frequência do Risco
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.strategic?.errorCostUnit === 'per_failure' && 'Por Falha'}
+                            {data.strategic?.errorCostUnit === 'monthly' && 'Por Mês'}
+                            {data.strategic?.errorCostUnit === 'annual' && 'Por Ano'}
+                            {!data.strategic?.errorCostUnit && 'Por Falha (Padrão)'}
+                        </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                        <Typography variant="caption" color="text.secondary">
+                            Turnover Anual
+                        </Typography>
+                        <Typography variant="body1" fontWeight={500}>
+                            {data.strategic?.turnoverRate ? `${data.strategic.turnoverRate}%` : '0%'}
                         </Typography>
                     </Grid>
                 </Grid>
