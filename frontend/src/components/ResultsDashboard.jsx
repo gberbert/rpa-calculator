@@ -156,6 +156,33 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
     const strategicInput = data.strategic_input || {};
     const maintenanceAnalysis = data.maintenance_analysis || {};
 
+    // --- CÁLCULO DO ROI (Fórmula Revisada) ---
+    // --- CÁLCULO DO ROI (Fórmula Revisada) ---
+    // Formula: ([Economia Anual (Ano1 + 2 x Ano2+)] / [Custo AS-IS x 3]) * Acuracia (Deflator) * 100
+    // Opex Exemption: Se 'isento', Ano 2+ considera economia = AsIs (sem descontar Opex)
+
+    const isExempt = (data.opex_exemption || data.opexExemption || 'isento') === 'isento';
+
+    // Simplificando variáveis para uso geral
+    const asIs = results.as_is_cost_annual || 0;
+    const toBe = results.to_be_cost_annual || 0;
+    const devCost = results.development_cost || 0;
+
+    const savingsYear2Plus = isExempt ? asIs : (asIs - toBe);
+
+    const calculateRoi = () => {
+        const accuracy = (strategic.accuracyPercentage || 100) / 100;
+        const savingsYear1 = asIs - toBe - devCost; // Economia Ano 1 (Líquida)
+
+        const numerator = savingsYear1 + (2 * savingsYear2Plus);
+        const denominator = asIs * 3;
+
+        if (denominator === 0) return 0;
+
+        return (numerator / denominator) * accuracy * 100;
+    };
+    const calculatedRoi = calculateRoi();
+
     // Dados gráficos
     // Calcular Custeio TO-BE Ponderado (Deflator de acurácia)
     // Se não houver economia bruta (savings < 0), o ponderado tende ao TO-BE normal ou pior.
@@ -426,8 +453,8 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                         </Grid>
                         <Grid item xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
                             <Typography variant="h6" color="text.secondary">ROI Estimado (3 Anos)</Typography>
-                            <Typography variant="h3" fontWeight="bold" color={(results.roi?.year3 ?? results.roi_year_1 ?? 0) >= 0 ? 'success.main' : 'error.main'}>
-                                {formatNumber(results.roi?.year3 ?? results.roi_year_1 ?? 0)}%
+                            <Typography variant="h3" fontWeight="bold" color={calculatedRoi >= 0 ? 'success.main' : 'error.main'}>
+                                {formatNumber(calculatedRoi)}%
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
                                 Payback em {formatNumber(results.payback_months)} meses
@@ -461,7 +488,7 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                     <Box>
                                         <Typography variant="caption" color="text.secondary" display="block">Ano 2+ (Bruto):</Typography>
                                         <Typography variant="body1" fontWeight="bold" color="success.main">
-                                            {formatCurrency(results.as_is_cost_annual)}
+                                            {formatCurrency(savingsYear2Plus)}
                                         </Typography>
                                     </Box>
                                 </Box>

@@ -29,7 +29,9 @@ export default function ROIWizard({ onComplete }) {
     const [formData, setFormData] = useState({
         projectName: '',
         ownerUid: '', // ID oculto (para o banco)
+
         responsibleName: '', // Nome visível (para a tela)
+        opexExemption: 'isento', // Padrão: Isento de Opex no ano 2+
         inputs: {
             volume: '',
             aht: '',
@@ -84,7 +86,9 @@ export default function ROIWizard({ onComplete }) {
         setFormData({
             projectName: '',
             ownerUid: currentUser ? currentUser.uid : '',
+
             responsibleName: currentUser ? currentUser.email : '',
+            opexExemption: 'isento',
             inputs: {
                 volume: '',
                 aht: '',
@@ -122,6 +126,7 @@ export default function ROIWizard({ onComplete }) {
                 ownerUid: finalOwnerUid,
                 // Opcional: Você pode salvar o responsibleName no banco se quiser exibir depois
                 responsible_name: formData.responsibleName,
+                opex_exemption: formData.opexExemption,
                 inputs: {
                     volume: parseFloat(formData.inputs.volume) || 0,
                     aht: parseFloat(formData.inputs.aht) || 0,
