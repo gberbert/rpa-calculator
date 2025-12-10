@@ -109,26 +109,38 @@ export default function Step4Strategic({ data, onChange }) {
                         </Typography>
 
                         <Grid container spacing={2}>
-                            <Grid item xs={12} md={6}>
-                                <TextField
-                                    fullWidth
-                                    label="Custo Unitário do Erro (Multa/Perda)"
-                                    type="number"
-                                    size="small"
-                                    value={data.errorCost || ''}
-                                    onChange={handleChange('errorCost')}
-                                    InputProps={{
-                                        startAdornment: <InputAdornment position="start">R$</InputAdornment>,
-                                        endAdornment: (
-                                            <InputAdornment position="end">
-                                                <Tooltip title="Valor financeiro médio de uma falha (multa regulatória, perda de cliente, juros). O robô elimina esse custo." arrow placement="top">
-                                                    <IconButton edge="end" size="small"><HelpOutline fontSize="small" color="action" /></IconButton>
-                                                </Tooltip>
-                                            </InputAdornment>
-                                        )
-                                    }}
-                                    helperText="Valor estimado de multa ou perda por cada erro cometido."
-                                />
+                            <Grid item xs={12} md={8}>
+                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <TextField
+                                        fullWidth
+                                        label="Custo da Multa/Perda"
+                                        type="number"
+                                        size="small"
+                                        value={data.errorCost || ''}
+                                        onChange={handleChange('errorCost')}
+                                        InputProps={{
+                                            startAdornment: <InputAdornment position="start">R$</InputAdornment>,
+                                        }}
+                                        helperText="Valor monetário associado à falha."
+                                    />
+                                    <TextField
+                                        select
+                                        sx={{ width: '40%' }}
+                                        label="Frequência"
+                                        size="small"
+                                        value={data.errorCostUnit || 'per_failure'}
+                                        onChange={handleChange('errorCostUnit')}
+                                    >
+                                        <MenuItem value="per_failure">Por Falha</MenuItem>
+                                        <MenuItem value="monthly">Por Mês</MenuItem>
+                                        <MenuItem value="annual">Por Ano</MenuItem>
+                                    </TextField>
+                                </Box>
+                                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                                    {data.errorCostUnit === 'per_failure' && "Cálculo: (Volume × Taxa Erro) × Valor"}
+                                    {data.errorCostUnit === 'monthly' && "Cálculo: Valor × 12 Meses"}
+                                    {data.errorCostUnit === 'annual' && "Cálculo: Valor Fixo Anual"}
+                                </Typography>
                             </Grid>
                             <Grid item xs={12} md={6}>
                                 <FormControlLabel
@@ -157,10 +169,10 @@ export default function Step4Strategic({ data, onChange }) {
                             </Grid>
                         </Grid>
                     </Paper>
-                </Grid>
+                </Grid >
 
                 {/* Seção C: Soft Savings (RH) */}
-                <Grid item xs={12}>
+                < Grid item xs={12} >
                     <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
                         <Typography variant="subtitle1" gutterBottom fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <People fontSize="small" /> Recursos Humanos (Soft Savings)
@@ -190,8 +202,8 @@ export default function Step4Strategic({ data, onChange }) {
                             </Grid>
                         </Grid>
                     </Paper>
-                </Grid>
-            </Grid>
-        </Box>
+                </Grid >
+            </Grid >
+        </Box >
     );
 }

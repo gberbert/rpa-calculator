@@ -51,6 +51,13 @@ export default function Step3Complexity({ data, onChange }) {
         else if (data.numSteps <= 50) points += 3;
         else points += 5;
 
+        // Customização (Sem Licença RPA)
+        // Se for customizado (Python puro, etc), tende a ser mais complexo de manter/criar do zero sem framework, 
+        // ou requer arquitetura mais robusta. Adiciona complexidade.
+        if (data.useRpaLicense === 'no') {
+            points += 3; // Penalidade de complexidade significativa
+        }
+
         // Classificação (5 Níveis)
         if (points >= 14) return { level: 'MUITO COMPLEXA', color: 'error', label: 'Muito Complexa' };
         if (points >= 11) return { level: 'COMPLEXA', color: 'error', label: 'Complexa' }; // Usando error (vermelho) para alta complexidade
@@ -227,6 +234,46 @@ export default function Step3Complexity({ data, onChange }) {
                             }}
                             helperText="Quantos passos ou regras de negócio o processo possui?"
                         />
+                    </Grid>
+
+                    <Grid item xs={12} md={6}>
+                        <TextField
+                            select
+                            fullWidth
+                            label="Uso de Licença RPA"
+                            value={data.useRpaLicense || 'no'}
+                            onChange={(e) => handleChange('useRpaLicense', e.target.value)}
+                            helperText="Se 'Não', considera desenvolvimento customizado (Python), aumentando a complexidade."
+                            InputProps={{
+                                startAdornment: <InputAdornment position="start"><Settings color="action" /></InputAdornment>
+                            }}
+                        >
+                            <MenuItem value="no">Não (Custom/Python)</MenuItem>
+                            <MenuItem value="yes">Sim (Licença Comercial)</MenuItem>
+                        </TextField>
+
+                        {data.useRpaLicense === 'yes' && (
+                            <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', border: '1px dashed #ccc', borderRadius: 1 }}>
+                                <TextField
+                                    fullWidth
+                                    label="Custo da Licença (Proporcional)"
+                                    type="number"
+                                    size="small"
+                                    value={data.rpaLicenseCost}
+                                    onChange={(e) => handleChange('rpaLicenseCost', e.target.value)}
+                                    InputProps={{
+                                        startAdornment: <InputAdornment position="start">R$</InputAdornment>,
+                                    }}
+                                    helperText={
+                                        <span>
+                                            Informe o valor anual de licença <strong>atribuído a este robô</strong>.
+                                            <br />
+                                            Recomendamos ajuda especializada para calcular o rateio correto (Ex: 1 licença de Run custa 20k, mas roda 4 robôs = 5k/robô).
+                                        </span>
+                                    }
+                                />
+                            </Box>
+                        )}
                     </Grid>
                 </Grid>
             </Paper>

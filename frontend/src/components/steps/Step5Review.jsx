@@ -88,7 +88,20 @@ export default function Step5Review({ data, hideInstructions = false }) {
         const turnoverReplacementPct = settings?.strategic_config?.turnover_replacement_cost_percentage || 20;
 
         // 1. Custo de Risco (Evitado)
-        const riskCost = (vol * (errRate / 100)) * errCost;
+        const riskUnit = data.strategic?.errorCostUnit || 'per_failure';
+        let riskCost = 0;
+        if (riskUnit === 'per_failure') {
+            riskCost = (vol * (errRate / 100)) * errCost;
+        } else if (riskUnit === 'monthly') {
+            riskCost = errCost; // Valor Mensal
+        } else if (riskUnit === 'annual') {
+            riskCost = errCost / 12; // Valor Anual trazido a valor presente mensal para exibição??
+            // Ops, calcService converts everything to annual mostly.
+            // Here in "memory" we are showing "/ mês" in the UI below?
+            // Line 371 says: `${formatCurrency(memory.riskCost)} / mês`
+            // So let's normalize everything to MONTHLY here for the review screen.
+            riskCost = errCost / 12;
+        }
 
         // 2. Soft Savings (Turnover)
         // Fórmula: (Custo Anual FTE * %Reposição) * (Turnover% / 100) * FTE Count
@@ -368,7 +381,16 @@ export default function Step5Review({ data, hideInstructions = false }) {
                                 <ListItemIcon><CheckCircle fontSize="small" color="success" /></ListItemIcon>
                                 <ListItemText
                                     primary="Custo de Risco Evitado"
-                                    secondary={`${formatCurrency(memory.riskCost)} / mês (Multas e Perdas)`}
+                                    secondary={
+                                        <span>
+                                            {formatCurrency(memory.riskCost)} / mês
+                                            <Typography variant="caption" display="block" color="text.secondary">
+                                                (Baseado em: {data.strategic?.errorCostUnit === 'annual' ? 'Custo Fixo Anual' :
+                                                    data.strategic?.errorCostUnit === 'monthly' ? 'Custo Fixo Mensal' :
+                                                        'Custo Por Falha x Volume'})
+                                            </Typography>
+                                        </span>
+                                    }
                                 />
                             </ListItem>
                             <ListItem>

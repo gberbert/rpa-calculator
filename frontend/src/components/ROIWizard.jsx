@@ -43,11 +43,14 @@ export default function ROIWizard({ onComplete }) {
             dataType: 'structured',
             environment: 'web',
             numSteps: 10,
+            useRpaLicense: 'no', // Default mudou para Não por pedido do usuário
+            rpaLicenseCost: 0,
         },
         strategic: {
             cognitiveLevel: 'rule',
             inputVariability: 'never',
             errorCost: '',
+            errorCostUnit: 'per_failure', // Default
             needs24h: false,
             turnoverRate: ''
         }
@@ -132,11 +135,15 @@ export default function ROIWizard({ onComplete }) {
                     dataType: formData.complexity.dataType || 'structured',
                     environment: formData.complexity.environment || 'web',
                     numSteps: parseInt(formData.complexity.numSteps) || 10,
+                    numSteps: parseInt(formData.complexity.numSteps) || 10,
+                    useRpaLicense: formData.complexity.useRpaLicense || 'no',
+                    rpaLicenseCost: parseFloat(formData.complexity.rpaLicenseCost) || 0,
                 },
                 strategic: {
                     cognitiveLevel: formData.strategic.cognitiveLevel || 'rule',
                     inputVariability: formData.strategic.inputVariability || 'never',
                     errorCost: parseFloat(formData.strategic.errorCost) || 0,
+                    errorCostUnit: formData.strategic.errorCostUnit || 'per_failure',
                     needs24h: formData.strategic.needs24h || false,
                     turnoverRate: parseFloat(formData.strategic.turnoverRate) || 0
                 }

@@ -425,9 +425,9 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                             </Box>
                         </Grid>
                         <Grid item xs={12} md={4} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center' }}>
-                            <Typography variant="h6" color="text.secondary">ROI Estimado (1º Ano)</Typography>
-                            <Typography variant="h3" fontWeight="bold" color={results.roi_year_1 >= 0 ? 'success.main' : 'error.main'}>
-                                {formatNumber(results.roi_year_1)}%
+                            <Typography variant="h6" color="text.secondary">ROI Estimado (3 Anos)</Typography>
+                            <Typography variant="h3" fontWeight="bold" color={(results.roi?.year3 ?? results.roi_year_1 ?? 0) >= 0 ? 'success.main' : 'error.main'}>
+                                {formatNumber(results.roi?.year3 ?? results.roi_year_1 ?? 0)}%
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
                                 Payback em {formatNumber(results.payback_months)} meses
@@ -630,9 +630,18 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                         primary="Redução de Risco (Compliance)"
                                         secondary={
                                             strategic.riskCost > 0
-                                                ? `Mitigação estimada em ${formatCurrency(strategic.riskCost)}/ano`
+                                                ? (
+                                                    <span>
+                                                        Mitigação estimada em {formatCurrency(strategic.riskCost)}/ano
+                                                        <Typography variant="caption" display="block" color="text.secondary">
+                                                            (Método: {strategicInput.errorCostUnit === 'annual' ? 'Custo Fixo Anual' :
+                                                                strategicInput.errorCostUnit === 'monthly' ? 'Custo Fixo Mensal' :
+                                                                    'Custo por Falha'})
+                                                        </Typography>
+                                                    </span>
+                                                )
                                                 : strategicInput.errorCost > 0
-                                                    ? `Custo do Erro: ${formatCurrency(strategicInput.errorCost)} (Sem impacto calculado)`
+                                                    ? `Custo do Erro Informado: ${formatCurrency(strategicInput.errorCost)}`
                                                     : 'Custo do Erro: R$ 0,00 (Não aplicável)'
                                         }
                                     />

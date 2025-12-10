@@ -229,8 +229,17 @@ class FinancialService {
 
         // Compliance Risk (Custo do Erro)
         if (strategic.errorCost > 0) {
-            // Volume anual * Taxa de erro * Custo da multa
-            riskCost = (inputs.volume * 12) * (inputs.errorRate / 100) * strategic.errorCost;
+            const unit = strategic.errorCostUnit || 'per_failure';
+            if (unit === 'per_failure') {
+                // Volume anual * Taxa de erro * Custo unitário
+                riskCost = (inputs.volume * 12) * (inputs.errorRate / 100) * strategic.errorCost;
+            } else if (unit === 'monthly') {
+                // Custo mensal fixo de multas/perdas
+                riskCost = strategic.errorCost * 12;
+            } else if (unit === 'annual') {
+                // Custo anual fixo
+                riskCost = strategic.errorCost;
+            }
         }
 
         // Turnover Cost (Soft Savings)
@@ -256,7 +265,22 @@ class FinancialService {
             database_annual: 0
         };
 
-        let annualInfraCost = Object.values(infraCosts).reduce((a, b) => a + b, 0);
+        // Custo Base de Infra (VM + Banco de Dados)
+        const baseInfraCost = (infraCosts.virtual_machine_annual || 0) + (infraCosts.database_annual || 0);
+
+        // Custo de Licença RPA
+        let rpaLicenseCost = infraCosts.rpa_license_annual || 0;
+
+        if (complexity.useRpaLicense === 'no') {
+            // Se customizado, não há custo de licença RPA
+            rpaLicenseCost = 0;
+        } else if (complexity.useRpaLicense === 'yes' && complexity.rpaLicenseCost !== undefined) {
+            // Se usa licença e informou valor específico (ponderado), usa o valor informado
+            // Nota: Se o usuário informou 0, usamos 0.
+            rpaLicenseCost = Number(complexity.rpaLicenseCost);
+        }
+
+        let annualInfraCost = baseInfraCost + rpaLicenseCost;
 
         // --- Strategic Adjustments to TO-BE ---
         let genAiCost = 0;
@@ -311,7 +335,19 @@ class FinancialService {
         // ROI = (Economia Ajustada / Custo AS-IS Anual) * 100
         // Nota: Alguns modelos usam (Savings / Cost) - 1. Aqui mantemos (Benefit / Cost) simples ou (Net / Cost).
         // Usando o padrão anterior: (Net Savings / AS-IS Total)
-        const roi = (annualSavings / totalAsIsCost) * 100;
+        const roi1Year = (annualSavings / totalAsIsCost) * 100;
+
+        // ROI 3 Anos (Acumulado) = ((Economia Ajustada * 3) - CAPEX) / CAPEX
+        // Representa o retorno sobre o investimento de desenvolvimento após 3 anos.
+        let roi3Years = 0;
+        if (developmentCost > 0) {
+            const totalSavings3Years = annualSavings * 3;
+            // Economia Líquida (Net Return) = (Savings * 3) - Investimento
+            const netReturn3Years = totalSavings3Years - developmentCost;
+            roi3Years = (netReturn3Years / developmentCost) * 100;
+        } else {
+            roi3Years = roi1Year * 3;
+        }
 
         const monthlySavings = annualSavings / 12;
         const paybackMonths = this.calculatePayback(developmentCost, monthlySavings);
@@ -356,7 +392,8 @@ class FinancialService {
                 },
             },
             roi: {
-                year1: Math.round(roi * 100) / 100,
+                year1: Math.round(roi1Year * 100) / 100,
+                year3: Math.round(roi3Years * 100) / 100,
                 annualSavings: Math.round(annualSavings * 100) / 100,
                 grossAnnualSavings: Math.round(grossAnnualSavings * 100) / 100,
                 monthlySavings: Math.round(monthlySavings * 100) / 100,
