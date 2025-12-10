@@ -383,11 +383,9 @@ export default function Step5Review({ data, hideInstructions = false }) {
                                     primary="Custo de Risco Evitado"
                                     secondary={
                                         <span>
-                                            {formatCurrency(memory.riskCost)} / mês
+                                            Reportado: <strong>{formatCurrency(data.strategic?.errorCost)}</strong> ({data.strategic?.errorCostUnit === 'annual' ? 'Por Ano' : data.strategic?.errorCostUnit === 'monthly' ? 'Por Mês' : 'Por Falha'})
                                             <Typography variant="caption" display="block" color="text.secondary">
-                                                (Baseado em: {data.strategic?.errorCostUnit === 'annual' ? 'Custo Fixo Anual' :
-                                                    data.strategic?.errorCostUnit === 'monthly' ? 'Custo Fixo Mensal' :
-                                                        'Custo Por Falha x Volume'})
+                                                Impacto: {formatCurrency(memory.riskCost)} / mês (Calculado)
                                             </Typography>
                                         </span>
                                     }

@@ -632,11 +632,9 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                             strategic.riskCost > 0
                                                 ? (
                                                     <span>
-                                                        Mitigação estimada em {formatCurrency(strategic.riskCost)}/ano
+                                                        Reportado: <strong>{formatCurrency(strategicInput.errorCost)}</strong> ({strategicInput.errorCostUnit === 'annual' ? 'Por Ano' : strategicInput.errorCostUnit === 'monthly' ? 'Por Mês' : 'Por Falha'})
                                                         <Typography variant="caption" display="block" color="text.secondary">
-                                                            (Método: {strategicInput.errorCostUnit === 'annual' ? 'Custo Fixo Anual' :
-                                                                strategicInput.errorCostUnit === 'monthly' ? 'Custo Fixo Mensal' :
-                                                                    'Custo por Falha'})
+                                                            Impacto na Economia: {formatCurrency(strategic.riskCost)}/ano
                                                         </Typography>
                                                     </span>
                                                 )
