@@ -172,14 +172,24 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
 
     const calculateRoi = () => {
         const accuracy = (strategic.accuracyPercentage || 100) / 100;
-        const savingsYear1 = asIs - toBe - devCost; // Economia Ano 1 (Líquida)
+        const asIs3Years = asIs * 3;
 
-        const numerator = savingsYear1 + (2 * savingsYear2Plus);
-        const denominator = asIs * 3;
+        // CAPEX = devCost
+        // OPEX Anual = toBe
 
-        if (denominator === 0) return 0;
+        let totalTotalCost; // Denominador e redutor do numerador
 
-        return (numerator / denominator) * accuracy * 100;
+        if (isExempt) {
+            // Regra: (((custo AS-IS dos 3 anos) - (CAPEX + OPEX do ano 1))/ (CAPEX + OPEX do ano 1)) * Acuracidade * 100
+            totalTotalCost = devCost + toBe;
+        } else {
+            // Regra: (((custo AS-IS dos 3 anos) - (CAPEX + OPEX dos 3 anos))/ (CAPEX + OPEX dos 3 anos)) * Acuracidade * 100
+            totalTotalCost = devCost + (toBe * 3);
+        }
+
+        if (totalTotalCost === 0) return 0;
+
+        return ((asIs3Years - totalTotalCost) / totalTotalCost) * accuracy * 100;
     };
     const calculatedRoi = calculateRoi();
 
@@ -548,9 +558,22 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                                         </Typography>
                                     </Box>
                                     <Box>
-                                        <Typography variant="caption" color="text.secondary" display="block">Ano 2+ (Bruto):</Typography>
-                                        <Typography variant="body1" fontWeight="bold" color="success.main">
+                                        <Typography variant="caption" color="text.secondary" display="block">Ano 2 (Bruto):</Typography>
+                                        <Typography variant="body1" fontWeight="bold" color={savingsYear2Plus >= 0 ? "success.main" : "error.main"}>
                                             {formatCurrency(savingsYear2Plus)}
+                                        </Typography>
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="caption" color="text.secondary" display="block">Ano 3 (Bruto):</Typography>
+                                        <Typography variant="body1" fontWeight="bold" color={savingsYear2Plus >= 0 ? "success.main" : "error.main"}>
+                                            {formatCurrency(savingsYear2Plus)}
+                                        </Typography>
+                                    </Box>
+                                    <Divider />
+                                    <Box>
+                                        <Typography variant="caption" color="text.secondary" display="block">Total de Economia em 3 anos:</Typography>
+                                        <Typography variant="body1" fontWeight="bold" color={(results.as_is_cost_annual - (results.development_cost + results.to_be_cost_annual) + (savingsYear2Plus * 2)) >= 0 ? "primary.main" : "error.main"}>
+                                            {formatCurrency((results.as_is_cost_annual - (results.development_cost + results.to_be_cost_annual)) + (savingsYear2Plus * 2))}
                                         </Typography>
                                     </Box>
                                 </Box>
