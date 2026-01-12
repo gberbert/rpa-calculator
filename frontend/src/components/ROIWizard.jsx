@@ -167,7 +167,10 @@ export default function ROIWizard({ onComplete }) {
             }
         } catch (err) {
             console.error('Error submitting project:', err);
-            setError(err.message || 'Erro ao processar solicitação');
+
+            // Tenta extrair a mensagem específica do backend
+            const backendError = err.response && err.response.data && err.response.data.error;
+            setError(backendError || err.message || 'Erro ao processar solicitação');
         } finally {
             setLoading(false);
         }
