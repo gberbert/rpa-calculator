@@ -8,44 +8,49 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Caminhos
-const packageJsonPath = path.join(__dirname, 'frontend', 'package.json');
+// Caminhos
+const frontendPackagePath = path.join(__dirname, 'frontend', 'package.json');
+const backendPackagePath = path.join(__dirname, 'backend', 'package.json');
 const versionFilePath = path.join(__dirname, 'frontend', 'src', 'version.js');
 
-// Verifica se o package.json existe
-if (!fs.existsSync(packageJsonPath)) {
-    console.error('❌ Erro: Arquivo frontend/package.json não encontrado.');
-    process.exit(1);
-}
+// Função auxiliar para incrementar versão
+const incrementVersion = (filePath, name) => {
+    if (!fs.existsSync(filePath)) {
+        console.error(`❌ Erro: ${name} package.json não encontrado.`);
+        return null;
+    }
+    const pkg = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    if (!pkg.version) pkg.version = "1.0.0";
 
-// 1. Ler o package.json atual
-const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    let parts = pkg.version.split('.').map(Number);
+    parts[2] += 1;
+    pkg.version = parts.join('.');
 
-if (!packageJson.version) {
-    packageJson.version = "1.0.0";
-}
+    fs.writeFileSync(filePath, JSON.stringify(pkg, null, 2));
+    console.log(`✅ ${name} atualizado: -> ${pkg.version}`);
+    return pkg.version;
+};
 
-const currentVersion = packageJson.version;
+// 1. Atualizar Frontend
+const newVersionFrontend = incrementVersion(frontendPackagePath, 'Frontend');
 
-// 2. Incrementar a versão (Lógica: Patch 0.0.X)
-let versionParts = currentVersion.split('.').map(Number);
-versionParts[2] += 1; 
-const newVersion = versionParts.join('.');
+// 2. Atualizar Backend (Sincronizando versões ou incrementando independente)
+// Para simplificar, vou incrementar o backend também para garantir que o Render perceba a mudança
+const newVersionBackend = incrementVersion(backendPackagePath, 'Backend');
 
-// 3. Atualizar o package.json
-packageJson.version = newVersion;
-fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+if (!newVersionFrontend) process.exit(1);
+
+const newVersion = newVersionFrontend;
 
 // 4. Criar/Atualizar o arquivo src/version.js
 const versionFileContent = `export const appVersion = "${newVersion}";\n`;
 
 const dir = path.dirname(versionFilePath);
-if (!fs.existsSync(dir)){
+if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
 }
 
 fs.writeFileSync(versionFilePath, versionFileContent);
-
-console.log(`✅ Versão atualizada: ${currentVersion} -> ${newVersion}`);
 
 // 5. Executar comandos GIT com stdio: 'inherit' para evitar ENOBUFS
 try {
