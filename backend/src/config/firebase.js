@@ -8,9 +8,9 @@ const ensureInitialized = () => {
   if (!admin.apps.length) {
     try {
       const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-      
+
       if (!privateKey || !process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL) {
-         throw new Error("Variáveis de ambiente do Firebase não encontradas.");
+        throw new Error("Variáveis de ambiente do Firebase não encontradas.");
       }
 
       admin.initializeApp({
@@ -40,4 +40,7 @@ const getFirestore = () => {
   return admin.firestore();
 };
 
-export { initializeFirebase, getFirestore };
+const db = admin.firestore();
+const auth = admin.auth();
+
+export { initializeFirebase, getFirestore, db, auth };

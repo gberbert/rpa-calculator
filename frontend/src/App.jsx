@@ -10,6 +10,7 @@ import Settings from './components/Settings';
 import ReloadPrompt from './components/ReloadPrompt';
 import Login from './components/Login';
 import SignUp from './components/SignUp';
+import ForgotPassword from './components/ForgotPassword';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { healthCheck } from './services/api';
 
@@ -26,7 +27,7 @@ const theme = createTheme({
 function AppContent() {
     const { currentUser } = useAuth();
     const [currentView, setCurrentView] = useState('home');
-    const [authMode, setAuthMode] = useState('login'); // 'login' ou 'signup'
+    const [authMode, setAuthMode] = useState('login'); // 'login', 'signup', 'forgot'
     const [selectedProject, setSelectedProject] = useState(null);
 
     // Se não estiver logado, gerencia entre Login e Cadastro
@@ -34,7 +35,13 @@ function AppContent() {
         if (authMode === 'signup') {
             return <SignUp onSwitchToLogin={() => setAuthMode('login')} />;
         }
-        return <Login onSwitchToRegister={() => setAuthMode('signup')} />;
+        if (authMode === 'forgot') {
+            return <ForgotPassword onBack={() => setAuthMode('login')} />;
+        }
+        return <Login
+            onSwitchToRegister={() => setAuthMode('signup')}
+            onSwitchToForgot={() => setAuthMode('forgot')}
+        />;
     }
 
     // ... lógica do app logado ...

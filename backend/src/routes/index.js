@@ -1,6 +1,7 @@
 import express from 'express';
 import projectController from '../controllers/projectController.js';
 import settingsController from '../controllers/settingsController.js';
+import userRoutes from './userRoutes.js';
 
 const router = express.Router();
 
@@ -23,5 +24,8 @@ router.delete('/projects/:id', projectController.deleteProject.bind(projectContr
 // Settings routes
 router.get('/settings', settingsController.getSettings.bind(settingsController));
 router.put('/settings', settingsController.updateSettings.bind(settingsController));
+
+// User routes
+router.use('/users', userRoutes);
 
 export default router;

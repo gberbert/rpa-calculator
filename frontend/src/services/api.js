@@ -79,6 +79,24 @@ export const settingsService = {
 };
 
 /**
+ * Serviço de API para usuários
+ */
+export const userService = {
+    listUsers: async () => {
+        const response = await api.get('/users');
+        return response.data;
+    },
+    toggleBlockStatus: async (uid, isBlocked) => {
+        const response = await api.patch(`/users/${uid}/status`, { isBlocked });
+        return response.data;
+    },
+    resetPassword: async (email) => {
+        const response = await api.post('/users/reset-password', { email });
+        return response.data;
+    }
+};
+
+/**
  * Health check
  */
 export const healthCheck = async () => {

@@ -2,18 +2,23 @@
 import React, { useEffect, useState } from 'react';
 import {
     Container, Paper, Typography, Grid, TextField, Button, Box, Alert,
-    Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Tooltip, CircularProgress, Divider, Chip
+    Table, TableBody, TableCell, TableContainer, TableHead, TableRow, IconButton, Tooltip, CircularProgress, Divider, Chip, Tabs, Tab
 } from '@mui/material';
-import { Save, PersonAdd, Delete, Functions, HelpOutline, Settings as SettingsIcon, Psychology } from '@mui/icons-material';
-import { settingsService } from '../services/api';
+import { Save, PersonAdd, Delete, Functions, HelpOutline, Settings as SettingsIcon, Psychology, Group, Block, CheckCircle } from '@mui/icons-material';
+import { settingsService, userService } from '../services/api';
 
 export default function Settings() {
     const [settings, setSettings] = useState(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState(null);
+    const [users, setUsers] = useState([]);
+    const [tabIndex, setTabIndex] = useState(0); // [NEW] Tab state
 
-    useEffect(() => { loadSettings(); }, []);
+    useEffect(() => {
+        loadSettings();
+        loadUsers();
+    }, []);
 
     // Recalcula as baselines e custos sempre que a composição do time mudar
     useEffect(() => {
@@ -23,7 +28,7 @@ export default function Settings() {
             setSettings(prev => ({
                 ...prev,
                 baselines: baselines,
-                calculated_costs: costs // Novo campo no estado local
+                calculated_costs: costs
             }));
         }
     }, [settings?.team_composition]);
@@ -111,6 +116,26 @@ export default function Settings() {
         } finally { setLoading(false); }
     };
 
+    const loadUsers = async () => {
+        try {
+            const data = await userService.listUsers();
+            setUsers(data);
+        } catch (error) {
+            console.error("Erro ao carregar usuários:", error);
+        }
+    };
+
+    const handleToggleBlock = async (uid, currentStatus) => {
+        try {
+            await userService.toggleBlockStatus(uid, !currentStatus);
+            setUsers(prev => prev.map(u => u.uid === uid ? { ...u, isBlocked: !currentStatus } : u));
+            setMessage({ type: 'success', text: `Usuário ${!currentStatus ? 'bloqueado' : 'desbloqueado'} com sucesso.` });
+        } catch (error) {
+            console.error("Erro ao alterar status:", error);
+            setMessage({ type: 'error', text: 'Erro ao alterar status do usuário.' });
+        }
+    };
+
     const sanitizePayload = (data) => {
         const cleanTeam = (data.team_composition || []).map(member => ({
             role: member.role || 'Novo Cargo',
@@ -130,7 +155,6 @@ export default function Settings() {
             database_annual: Number(data.infra_costs?.database_annual) || 0
         };
 
-        // Baselines são recalculadas apenas para salvar, custos não precisam ir pro banco (são derivados)
         const { baselines } = calculateBaselinesAndCostsFromTeam(cleanTeam);
 
         const cleanMaintenance = {
@@ -163,7 +187,6 @@ export default function Settings() {
         try {
             const cleanSettings = sanitizePayload(settings);
             await settingsService.updateSettings(cleanSettings);
-            // Ao salvar, atualizamos o estado com o que foi limpo, mas precisamos recalcular os custos para exibição
             const { costs } = calculateBaselinesAndCostsFromTeam(cleanSettings.team_composition);
             setSettings({ ...cleanSettings, calculated_costs: costs });
 
@@ -176,7 +199,6 @@ export default function Settings() {
         }
     };
 
-    // --- Manipuladores ---
     const handleRoleChange = (index, field, value, complexityKey = null) => {
         const newTeam = [...settings.team_composition];
         if (complexityKey) {
@@ -187,7 +209,6 @@ export default function Settings() {
         } else {
             newTeam[index][field] = value;
         }
-        // A atualização do estado disparará o useEffect para recalcular baselines
         setSettings({ ...settings, team_composition: newTeam });
     };
 
@@ -216,6 +237,10 @@ export default function Settings() {
         }));
     };
 
+    const handleTabChange = (event, newValue) => {
+        setTabIndex(newValue);
+    };
+
     if (loading) return <Box p={4} display="flex" justifyContent="center"><CircularProgress /></Box>;
     if (!settings) return <Box p={4}><Alert severity="error">Erro ao carregar configurações.</Alert></Box>;
 
@@ -231,374 +256,439 @@ export default function Settings() {
 
             {message && <Alert severity={message.type} sx={{ mb: 3 }} onClose={() => setMessage(null)}>{message.text}</Alert>}
 
-            {/* SEÇÃO 1: SQUAD E CUSTOS DE PESSOAL */}
-            <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                    <Box>
-                        <Typography variant="h6">1. Composição da Squad (Matriz de Participação)</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            Defina o percentual de alocação de cada perfil (base 168h) para cada complexidade.
-                            <br />
-                            Ex: 0.5 = 50% de 168h = 84h.
-                        </Typography>
-                    </Box>
-                    <Button variant="outlined" startIcon={<PersonAdd />} onClick={handleAddRole} size="small">
-                        Adicionar Cargo
-                    </Button>
-                </Box>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+                <Tabs value={tabIndex} onChange={handleTabChange} aria-label="settings tabs">
+                    <Tab label="Configurações Gerais" />
+                    <Tab label="Administração de Usuários" />
+                </Tabs>
+            </Box>
 
-                <TableContainer sx={{ mb: 2, border: '1px solid #e0e0e0', borderRadius: 2 }}>
-                    <Table size="small">
-                        <TableHead sx={{ bgcolor: '#f5f5f5' }}>
-                            <TableRow>
-                                <TableCell width="20%">Perfil / Cargo</TableCell>
-                                <TableCell width="10%">Custo/h (R$)</TableCell>
-                                <TableCell align="center">M. Simples</TableCell>
-                                <TableCell align="center">Simples</TableCell>
-                                <TableCell align="center">Média</TableCell>
-                                <TableCell align="center">Complexa</TableCell>
-                                <TableCell align="center">M. Complexa</TableCell>
-                                <TableCell width="5%" align="center">Ações</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {settings.team_composition.map((member, index) => (
-                                <TableRow key={index}>
-                                    <TableCell>
-                                        <TextField fullWidth variant="standard" value={member.role} onChange={(e) => handleRoleChange(index, 'role', e.target.value)} />
-                                    </TableCell>
-                                    <TableCell>
-                                        <TextField fullWidth type="number" variant="standard" value={member.rate} onChange={(e) => handleRoleChange(index, 'rate', e.target.value)} />
-                                    </TableCell>
-                                    {['very_simple', 'simple', 'medium', 'complex', 'very_complex'].map((key) => (
-                                        <TableCell key={key} align="center">
-                                            <TextField
-                                                fullWidth
-                                                type="number"
-                                                variant="standard"
-                                                inputProps={{ style: { textAlign: 'center' } }}
-                                                value={member.shares[key]}
-                                                onChange={(e) => handleRoleChange(index, 'shares', e.target.value, key)}
-                                                placeholder="0.0"
-                                            />
-                                        </TableCell>
-                                    ))}
-                                    <TableCell align="center">
-                                        <IconButton size="small" color="error" onClick={() => handleDeleteRole(index)}><Delete /></IconButton>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            </Paper>
-
-            {/* SEÇÃO 2: PARÂMETROS DE ESTIMATIVA (HORAS) - READONLY */}
-            <Paper elevation={3} sx={{ p: 4, mb: 4, bgcolor: '#f8f9fa' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Functions color="primary" sx={{ mr: 1 }} />
-                    <Typography variant="h6">2. Parâmetros de Estimativa (Horas Calculadas)</Typography>
-                </Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    Volume total de horas calculado automaticamente: <strong>Σ (Percentual × 168h)</strong>.
-                </Typography>
-
-                <Grid container spacing={3}>
-                    {['very_simple', 'simple', 'medium', 'complex', 'very_complex'].map((key) => {
-                        const labels = {
-                            very_simple: 'Muito Simples',
-                            simple: 'Simples',
-                            medium: 'Média',
-                            complex: 'Complexa',
-                            very_complex: 'Muito Complexa'
-                        };
-                        return (
-                            <Grid item xs={12} md={2} key={key}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                    <TextField
-                                        fullWidth
-                                        label={labels[key]}
-                                        value={settings.baselines[key]}
-                                        InputProps={{ readOnly: true, endAdornment: <Typography variant="caption">h</Typography> }}
-                                        variant="filled"
-                                    />
-                                    <TextField
-                                        fullWidth
-                                        label="Valor Estimado"
-                                        value={formatCurrency(settings.calculated_costs?.[key])}
-                                        InputProps={{ readOnly: true, style: { fontWeight: 'bold', color: '#2e7d32' } }}
-                                        variant="outlined"
-                                        size="small"
-                                    />
-                                </Box>
-                            </Grid>
-                        );
-                    })}
-                </Grid>
-
-                {/* CARD EXPLICATIVO DA MEMÓRIA DE CÁLCULO */}
-                <Box sx={{ mt: 4, p: 3, bgcolor: '#e3f2fd', borderRadius: 2, borderLeft: '4px solid #1976d2' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                        <HelpOutline color="primary" sx={{ mr: 1 }} />
-                        <Typography variant="subtitle1" fontWeight="bold" color="primary">
-                            Como o Sistema Calcula o Investimento?
-                        </Typography>
-                    </Box>
-
-                    <Grid container spacing={4}>
-                        <Grid item xs={12} md={7}>
-                            <Typography variant="body2" paragraph>
-                                O sistema multiplica o percentual de cada perfil por <strong>168 horas</strong> (base mensal) para encontrar as horas dedicadas.
-                                Em seguida, multiplica pelo valor hora do perfil.
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                                <Chip label="Base Mensal: 168h" size="small" color="primary" variant="outlined" />
-                                <Chip label="Custo = Horas × Rate" size="small" color="primary" variant="outlined" />
+            {/* TAB 0: Configurações Gerais */}
+            {tabIndex === 0 && (
+                <Box>
+                    {/* SEÇÃO 1: SQUAD E CUSTOS DE PESSOAL */}
+                    <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Box>
+                                <Typography variant="h6">1. Composição da Squad (Matriz de Participação)</Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                    Defina o percentual de alocação de cada perfil (base 168h) para cada complexidade.
+                                    <br />
+                                    Ex: 0.5 = 50% de 168h = 84h.
+                                </Typography>
                             </Box>
-                        </Grid>
+                            <Button variant="outlined" startIcon={<PersonAdd />} onClick={handleAddRole} size="small">
+                                Adicionar Cargo
+                            </Button>
+                        </Box>
 
-                        <Grid item xs={12} md={5}>
-                            <Typography variant="body2" paragraph>
-                                <strong>Fórmula do CAPEX:</strong>
-                            </Typography>
-                            <Box sx={{ fontFamily: 'monospace', bgcolor: 'white', p: 1.5, borderRadius: 1, mb: 2, border: '1px dashed #90caf9', fontSize: '0.85rem' }}>
-                                Σ ((%Perfil × 168) × Taxa_Perfil)
-                            </Box>
-                        </Grid>
-                    </Grid>
-                </Box>
-
-                {/* CARD EXPLICATIVO DA MATRIZ DE COMPLEXIDADE */}
-                <Box sx={{ mt: 4, p: 3, bgcolor: '#fff3e0', borderRadius: 2, borderLeft: '4px solid #ed6c02' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                        <Functions color="warning" sx={{ mr: 1 }} />
-                        <Typography variant="subtitle1" fontWeight="bold" color="warning.main">
-                            Matriz de Classificação de Complexidade (Sistema de Pontos)
-                        </Typography>
-                    </Box>
-                    <Typography variant="body2" paragraph>
-                        A complexidade é determinada pela soma de pontos de 4 critérios técnicos.
-                    </Typography>
-
-                    <Grid container spacing={2}>
-                        <Grid item xs={12} md={6}>
-                            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Critérios de Pontuação:</Typography>
-                            <Table size="small" sx={{ bgcolor: 'white', borderRadius: 1 }}>
-                                <TableBody>
+                        <TableContainer sx={{ mb: 2, border: '1px solid #e0e0e0', borderRadius: 2 }}>
+                            <Table size="small">
+                                <TableHead sx={{ bgcolor: '#f5f5f5' }}>
                                     <TableRow>
-                                        <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>1. Nº Aplicações</TableCell>
-                                        <TableCell sx={{ fontSize: '0.75rem' }}>Até 2 (+1) | Até 4 (+2) | 5+ (+3)</TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>2. Tipo de Dados</TableCell>
-                                        <TableCell sx={{ fontSize: '0.75rem' }}>Estruturado (+1) | Texto (+2) | OCR/Imagem (+5)</TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>3. Ambiente</TableCell>
-                                        <TableCell sx={{ fontSize: '0.75rem' }}>Web (+1) | SAP/ERP (+2) | Citrix/Remoto (+4)</TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>4. Nº Passos</TableCell>
-                                        <TableCell sx={{ fontSize: '0.75rem' }}>&lt;20 (+1) | 20-50 (+3) | &gt;50 (+5)</TableCell>
-                                    </TableRow>
-                                </TableBody>
-                            </Table>
-                        </Grid>
-                        <Grid item xs={12} md={6}>
-                            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Faixas de Classificação:</Typography>
-                            <Table size="small" sx={{ bgcolor: 'white', borderRadius: 1 }}>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Pontos Totais</TableCell>
-                                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Nível Resultante</TableCell>
+                                        <TableCell width="20%">Perfil / Cargo</TableCell>
+                                        <TableCell width="10%">Custo/h (R$)</TableCell>
+                                        <TableCell align="center">M. Simples</TableCell>
+                                        <TableCell align="center">Simples</TableCell>
+                                        <TableCell align="center">Média</TableCell>
+                                        <TableCell align="center">Complexa</TableCell>
+                                        <TableCell align="center">M. Complexa</TableCell>
+                                        <TableCell width="5%" align="center">Ações</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                    <TableRow>
-                                        <TableCell sx={{ fontSize: '0.75rem' }}>&lt; 6 pontos</TableCell>
-                                        <TableCell sx={{ fontSize: '0.75rem' }}><Chip label="MUITO SIMPLES" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} /></TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell sx={{ fontSize: '0.75rem' }}>6 a 8 pontos</TableCell>
-                                        <TableCell sx={{ fontSize: '0.75rem' }}><Chip label="SIMPLES" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} /></TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell sx={{ fontSize: '0.75rem' }}>9 a 11 pontos</TableCell>
-                                        <TableCell sx={{ fontSize: '0.75rem' }}><Chip label="MÉDIA" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} /></TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell sx={{ fontSize: '0.75rem' }}>12 a 14 pontos</TableCell>
-                                        <TableCell sx={{ fontSize: '0.75rem' }}><Chip label="COMPLEXA" size="small" color="error" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} /></TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell sx={{ fontSize: '0.75rem' }}>&gt; 14 pontos</TableCell>
-                                        <TableCell sx={{ fontSize: '0.75rem' }}><Chip label="MUITO COMPLEXA" size="small" color="error" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} /></TableCell>
-                                    </TableRow>
+                                    {settings.team_composition.map((member, index) => (
+                                        <TableRow key={index}>
+                                            <TableCell>
+                                                <TextField fullWidth variant="standard" value={member.role} onChange={(e) => handleRoleChange(index, 'role', e.target.value)} />
+                                            </TableCell>
+                                            <TableCell>
+                                                <TextField fullWidth type="number" variant="standard" value={member.rate} onChange={(e) => handleRoleChange(index, 'rate', e.target.value)} />
+                                            </TableCell>
+                                            {['very_simple', 'simple', 'medium', 'complex', 'very_complex'].map((key) => (
+                                                <TableCell key={key} align="center">
+                                                    <TextField
+                                                        fullWidth
+                                                        type="number"
+                                                        variant="standard"
+                                                        inputProps={{ style: { textAlign: 'center' } }}
+                                                        value={member.shares[key]}
+                                                        onChange={(e) => handleRoleChange(index, 'shares', e.target.value, key)}
+                                                        placeholder="0.0"
+                                                    />
+                                                </TableCell>
+                                            ))}
+                                            <TableCell align="center">
+                                                <IconButton size="small" color="error" onClick={() => handleDeleteRole(index)}><Delete /></IconButton>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
                                 </TableBody>
                             </Table>
+                        </TableContainer>
+                    </Paper>
+
+                    {/* SEÇÃO 2: PARÂMETROS DE ESTIMATIVA (HORAS) - READONLY */}
+                    <Paper elevation={3} sx={{ p: 4, mb: 4, bgcolor: '#f8f9fa' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                            <Functions color="primary" sx={{ mr: 1 }} />
+                            <Typography variant="h6">2. Parâmetros de Estimativa (Horas Calculadas)</Typography>
+                        </Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                            Volume total de horas calculado automaticamente: <strong>Σ (Percentual × 168h)</strong>.
+                        </Typography>
+
+                        <Grid container spacing={3}>
+                            {['very_simple', 'simple', 'medium', 'complex', 'very_complex'].map((key) => {
+                                const labels = {
+                                    very_simple: 'Muito Simples',
+                                    simple: 'Simples',
+                                    medium: 'Média',
+                                    complex: 'Complexa',
+                                    very_complex: 'Muito Complexa'
+                                };
+                                return (
+                                    <Grid item xs={12} md={2} key={key}>
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                            <TextField
+                                                fullWidth
+                                                label={labels[key]}
+                                                value={settings.baselines[key]}
+                                                InputProps={{ readOnly: true, endAdornment: <Typography variant="caption">h</Typography> }}
+                                                variant="filled"
+                                            />
+                                            <TextField
+                                                fullWidth
+                                                label="Valor Estimado"
+                                                value={formatCurrency(settings.calculated_costs?.[key])}
+                                                InputProps={{ readOnly: true, style: { fontWeight: 'bold', color: '#2e7d32' } }}
+                                                variant="outlined"
+                                                size="small"
+                                            />
+                                        </Box>
+                                    </Grid>
+                                );
+                            })}
                         </Grid>
-                    </Grid>
+
+                        {/* CARD EXPLICATIVO DA MEMÓRIA DE CÁLCULO */}
+                        <Box sx={{ mt: 4, p: 3, bgcolor: '#e3f2fd', borderRadius: 2, borderLeft: '4px solid #1976d2' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                                <HelpOutline color="primary" sx={{ mr: 1 }} />
+                                <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                                    Como o Sistema Calcula o Investimento?
+                                </Typography>
+                            </Box>
+
+                            <Grid container spacing={4}>
+                                <Grid item xs={12} md={7}>
+                                    <Typography variant="body2" paragraph>
+                                        O sistema multiplica o percentual de cada perfil por <strong>168 horas</strong> (base mensal) para encontrar as horas dedicadas.
+                                        Em seguida, multiplica pelo valor hora do perfil.
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                        <Chip label="Base Mensal: 168h" size="small" color="primary" variant="outlined" />
+                                        <Chip label="Custo = Horas × Rate" size="small" color="primary" variant="outlined" />
+                                    </Box>
+                                </Grid>
+
+                                <Grid item xs={12} md={5}>
+                                    <Typography variant="body2" paragraph>
+                                        <strong>Fórmula do CAPEX:</strong>
+                                    </Typography>
+                                    <Box sx={{ fontFamily: 'monospace', bgcolor: 'white', p: 1.5, borderRadius: 1, mb: 2, border: '1px dashed #90caf9', fontSize: '0.85rem' }}>
+                                        Σ ((%Perfil × 168) × Taxa_Perfil)
+                                    </Box>
+                                </Grid>
+                            </Grid>
+                        </Box>
+
+                        {/* CARD EXPLICATIVO DA MATRIZ DE COMPLEXIDADE */}
+                        <Box sx={{ mt: 4, p: 3, bgcolor: '#fff3e0', borderRadius: 2, borderLeft: '4px solid #ed6c02' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                                <Functions color="warning" sx={{ mr: 1 }} />
+                                <Typography variant="subtitle1" fontWeight="bold" color="warning.main">
+                                    Matriz de Classificação de Complexidade (Sistema de Pontos)
+                                </Typography>
+                            </Box>
+                            <Typography variant="body2" paragraph>
+                                A complexidade é determinada pela soma de pontos de 4 critérios técnicos.
+                            </Typography>
+
+                            <Grid container spacing={2}>
+                                <Grid item xs={12} md={6}>
+                                    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Critérios de Pontuação:</Typography>
+                                    <Table size="small" sx={{ bgcolor: 'white', borderRadius: 1 }}>
+                                        <TableBody>
+                                            <TableRow>
+                                                <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>1. Nº Aplicações</TableCell>
+                                                <TableCell sx={{ fontSize: '0.75rem' }}>Até 2 (+1) | Até 4 (+2) | 5+ (+3)</TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>2. Tipo de Dados</TableCell>
+                                                <TableCell sx={{ fontSize: '0.75rem' }}>Estruturado (+1) | Texto (+2) | OCR/Imagem (+5)</TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>3. Ambiente</TableCell>
+                                                <TableCell sx={{ fontSize: '0.75rem' }}>Web (+1) | SAP/ERP (+2) | Citrix/Remoto (+4)</TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell component="th" scope="row" sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>4. Nº Passos</TableCell>
+                                                <TableCell sx={{ fontSize: '0.75rem' }}>&lt;20 (+1) | 20-50 (+3) | &gt;50 (+5)</TableCell>
+                                            </TableRow>
+                                        </TableBody>
+                                    </Table>
+                                </Grid>
+                                <Grid item xs={12} md={6}>
+                                    <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Faixas de Classificação:</Typography>
+                                    <Table size="small" sx={{ bgcolor: 'white', borderRadius: 1 }}>
+                                        <TableHead>
+                                            <TableRow>
+                                                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Pontos Totais</TableCell>
+                                                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.75rem' }}>Nível Resultante</TableCell>
+                                            </TableRow>
+                                        </TableHead>
+                                        <TableBody>
+                                            <TableRow>
+                                                <TableCell sx={{ fontSize: '0.75rem' }}>&lt; 6 pontos</TableCell>
+                                                <TableCell sx={{ fontSize: '0.75rem' }}><Chip label="MUITO SIMPLES" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} /></TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell sx={{ fontSize: '0.75rem' }}>6 a 8 pontos</TableCell>
+                                                <TableCell sx={{ fontSize: '0.75rem' }}><Chip label="SIMPLES" size="small" color="success" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} /></TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell sx={{ fontSize: '0.75rem' }}>9 a 11 pontos</TableCell>
+                                                <TableCell sx={{ fontSize: '0.75rem' }}><Chip label="MÉDIA" size="small" color="warning" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} /></TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell sx={{ fontSize: '0.75rem' }}>12 a 14 pontos</TableCell>
+                                                <TableCell sx={{ fontSize: '0.75rem' }}><Chip label="COMPLEXA" size="small" color="error" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} /></TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell sx={{ fontSize: '0.75rem' }}>&gt; 14 pontos</TableCell>
+                                                <TableCell sx={{ fontSize: '0.75rem' }}><Chip label="MUITO COMPLEXA" size="small" color="error" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} /></TableCell>
+                                            </TableRow>
+                                        </TableBody>
+                                    </Table>
+                                </Grid>
+                            </Grid>
+                        </Box>
+                    </Paper>
+
+                    {/* SEÇÃO 3: CUSTOS DE INFRA */}
+                    <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
+                        <Typography variant="h6" gutterBottom>3. Custos de Infraestrutura & Licenças (Anual)</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                            Custos fixos recorrentes (OPEX) necessários para manter o robô rodando.
+                        </Typography>
+                        <Grid container spacing={3}>
+                            <Grid item xs={12} md={4}>
+                                <TextField
+                                    fullWidth label="Licença RPA (Bot Runner)" type="number"
+                                    value={settings.infra_costs.rpa_license_annual}
+                                    onChange={(e) => updateInfraCost('rpa_license_annual', e.target.value)}
+                                    InputLabelProps={{ shrink: true }}
+                                />
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                                <TextField
+                                    fullWidth label="Servidor / VM" type="number"
+                                    value={settings.infra_costs.virtual_machine_annual}
+                                    onChange={(e) => updateInfraCost('virtual_machine_annual', e.target.value)}
+                                    InputLabelProps={{ shrink: true }}
+                                />
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                                <TextField
+                                    fullWidth label="Banco de Dados / Storage" type="number"
+                                    value={settings.infra_costs.database_annual}
+                                    onChange={(e) => updateInfraCost('database_annual', e.target.value)}
+                                    InputLabelProps={{ shrink: true }}
+                                />
+                            </Grid>
+                        </Grid>
+                    </Paper>
+
+                    {/* SEÇÃO 4: PARÂMETROS DE SUSTENTAÇÃO (OPEX) */}
+                    <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                            <SettingsIcon color="primary" sx={{ mr: 1 }} />
+                            <Typography variant="h6">4. Parâmetros de Sustentação (OPEX)</Typography>
+                        </Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                            Defina o custo da equipe de sustentação e a capacidade de atendimento por complexidade.
+                        </Typography>
+
+                        <Grid container spacing={3}>
+                            <Grid item xs={12} md={3}>
+                                <TextField
+                                    fullWidth label="Custo Mensal FTE Sustentação" type="number"
+                                    value={settings.maintenance_config?.fte_monthly_cost || 8000}
+                                    onChange={(e) => setSettings(prev => ({
+                                        ...prev,
+                                        maintenance_config: { ...prev.maintenance_config, fte_monthly_cost: e.target.value }
+                                    }))}
+                                    InputProps={{ startAdornment: <Typography variant="caption" sx={{ mr: 1 }}>R$</Typography> }}
+                                />
+                            </Grid>
+                            <Grid item xs={12} md={3}>
+                                <TextField
+                                    fullWidth label="Capacidade (Baixa)" type="number"
+                                    value={settings.maintenance_config?.capacity_low || 90}
+                                    onChange={(e) => setSettings(prev => ({
+                                        ...prev,
+                                        maintenance_config: { ...prev.maintenance_config, capacity_low: e.target.value }
+                                    }))}
+                                    helperText="Robôs por FTE"
+                                />
+                            </Grid>
+                            <Grid item xs={12} md={3}>
+                                <TextField
+                                    fullWidth label="Capacidade (Média)" type="number"
+                                    value={settings.maintenance_config?.capacity_medium || 70}
+                                    onChange={(e) => setSettings(prev => ({
+                                        ...prev,
+                                        maintenance_config: { ...prev.maintenance_config, capacity_medium: e.target.value }
+                                    }))}
+                                    helperText="Robôs por FTE"
+                                />
+                            </Grid>
+                            <Grid item xs={12} md={3}>
+                                <TextField
+                                    fullWidth label="Capacidade (Alta)" type="number"
+                                    value={settings.maintenance_config?.capacity_high || 50}
+                                    onChange={(e) => setSettings(prev => ({
+                                        ...prev,
+                                        maintenance_config: { ...prev.maintenance_config, capacity_high: e.target.value }
+                                    }))}
+                                    helperText="Robôs por FTE"
+                                />
+                            </Grid>
+                        </Grid>
+                    </Paper>
+
+                    {/* SEÇÃO 5: PARÂMETROS DE IA E ESTRATÉGIA */}
+                    <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                            <Psychology color="primary" sx={{ mr: 1 }} />
+                            <Typography variant="h6">5. Parâmetros de IA e Estratégia</Typography>
+                        </Box>
+                        <Grid container spacing={3}>
+                            <Grid item xs={12} md={4}>
+                                <TextField
+                                    fullWidth label="Custo GenAI por Transação" type="number"
+                                    value={settings.strategic_config?.genai_cost_per_transaction || 0.05}
+                                    onChange={(e) => setSettings(prev => ({
+                                        ...prev,
+                                        strategic_config: { ...prev.strategic_config, genai_cost_per_transaction: e.target.value }
+                                    }))}
+                                    InputProps={{ startAdornment: <Typography variant="caption" sx={{ mr: 1 }}>R$</Typography> }}
+                                />
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                                <TextField
+                                    fullWidth label="Licença Anual IDP" type="number"
+                                    value={settings.strategic_config?.idp_license_annual || 5000}
+                                    onChange={(e) => setSettings(prev => ({
+                                        ...prev,
+                                        strategic_config: { ...prev.strategic_config, idp_license_annual: e.target.value }
+                                    }))}
+                                    InputProps={{ startAdornment: <Typography variant="caption" sx={{ mr: 1 }}>R$</Typography> }}
+                                />
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                                <TextField
+                                    fullWidth label="Custo Reposição Turnover" type="number"
+                                    value={settings.strategic_config?.turnover_replacement_cost_percentage || 20}
+                                    onChange={(e) => setSettings(prev => ({
+                                        ...prev,
+                                        strategic_config: { ...prev.strategic_config, turnover_replacement_cost_percentage: e.target.value }
+                                    }))}
+                                    InputProps={{ endAdornment: <Typography variant="caption" sx={{ ml: 1 }}>%</Typography> }}
+                                />
+                            </Grid>
+                            <Grid item xs={12} md={4}>
+                                <TextField
+                                    fullWidth label="Deflator de Acurácia (ROI)" type="number"
+                                    value={settings.strategic_config?.roi_accuracy_percentage || 100}
+                                    onChange={(e) => setSettings(prev => ({
+                                        ...prev,
+                                        strategic_config: { ...prev.strategic_config, roi_accuracy_percentage: e.target.value }
+                                    }))}
+                                    helperText="Percentual de confiança aplicado à economia projetada (ex: 90%)"
+                                    InputProps={{ endAdornment: <Typography variant="caption" sx={{ ml: 1 }}>%</Typography> }}
+                                />
+                            </Grid>
+                        </Grid>
+
+                        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
+                            <Button
+                                variant="contained"
+                                startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <Save />}
+                                size="large"
+                                onClick={handleSave}
+                                disabled={saving}
+                            >
+                                {saving ? 'Salvando...' : 'Salvar Todas as Configurações'}
+                            </Button>
+                        </Box>
+                    </Paper>
                 </Box>
-            </Paper>
+            )}
 
-            {/* SEÇÃO 3: CUSTOS DE INFRA */}
-            <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
-                <Typography variant="h6" gutterBottom>3. Custos de Infraestrutura & Licenças (Anual)</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    Custos fixos recorrentes (OPEX) necessários para manter o robô rodando.
-                </Typography>
-                <Grid container spacing={3}>
-                    <Grid item xs={12} md={4}>
-                        <TextField
-                            fullWidth label="Licença RPA (Bot Runner)" type="number"
-                            value={settings.infra_costs.rpa_license_annual}
-                            onChange={(e) => updateInfraCost('rpa_license_annual', e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={4}>
-                        <TextField
-                            fullWidth label="Servidor / VM" type="number"
-                            value={settings.infra_costs.virtual_machine_annual}
-                            onChange={(e) => updateInfraCost('virtual_machine_annual', e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={4}>
-                        <TextField
-                            fullWidth label="Banco de Dados / Storage" type="number"
-                            value={settings.infra_costs.database_annual}
-                            onChange={(e) => updateInfraCost('database_annual', e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                        />
-                    </Grid>
-                </Grid>
-            </Paper>
-
-            {/* SEÇÃO 4: PARÂMETROS DE SUSTENTAÇÃO (OPEX) */}
-            <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <SettingsIcon color="primary" sx={{ mr: 1 }} />
-                    <Typography variant="h6">4. Parâmetros de Sustentação (OPEX)</Typography>
-                </Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    Defina o custo da equipe de sustentação e a capacidade de atendimento por complexidade.
-                </Typography>
-
-                <Grid container spacing={3}>
-                    <Grid item xs={12} md={3}>
-                        <TextField
-                            fullWidth label="Custo Mensal FTE Sustentação" type="number"
-                            value={settings.maintenance_config?.fte_monthly_cost || 8000}
-                            onChange={(e) => setSettings(prev => ({
-                                ...prev,
-                                maintenance_config: { ...prev.maintenance_config, fte_monthly_cost: e.target.value }
-                            }))}
-                            InputProps={{ startAdornment: <Typography variant="caption" sx={{ mr: 1 }}>R$</Typography> }}
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={3}>
-                        <TextField
-                            fullWidth label="Capacidade (Baixa)" type="number"
-                            value={settings.maintenance_config?.capacity_low || 90}
-                            onChange={(e) => setSettings(prev => ({
-                                ...prev,
-                                maintenance_config: { ...prev.maintenance_config, capacity_low: e.target.value }
-                            }))}
-                            helperText="Robôs por FTE"
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={3}>
-                        <TextField
-                            fullWidth label="Capacidade (Média)" type="number"
-                            value={settings.maintenance_config?.capacity_medium || 70}
-                            onChange={(e) => setSettings(prev => ({
-                                ...prev,
-                                maintenance_config: { ...prev.maintenance_config, capacity_medium: e.target.value }
-                            }))}
-                            helperText="Robôs por FTE"
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={3}>
-                        <TextField
-                            fullWidth label="Capacidade (Alta)" type="number"
-                            value={settings.maintenance_config?.capacity_high || 50}
-                            onChange={(e) => setSettings(prev => ({
-                                ...prev,
-                                maintenance_config: { ...prev.maintenance_config, capacity_high: e.target.value }
-                            }))}
-                            helperText="Robôs por FTE"
-                        />
-                    </Grid>
-                </Grid>
-            </Paper>
-
-            {/* SEÇÃO 5: PARÂMETROS DE IA E ESTRATÉGIA */}
-            <Paper elevation={3} sx={{ p: 4, mb: 4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <Psychology color="primary" sx={{ mr: 1 }} />
-                    <Typography variant="h6">5. Parâmetros de IA e Estratégia</Typography>
-                </Box>
-                <Grid container spacing={3}>
-                    <Grid item xs={12} md={4}>
-                        <TextField
-                            fullWidth label="Custo GenAI por Transação" type="number"
-                            value={settings.strategic_config?.genai_cost_per_transaction || 0.05}
-                            onChange={(e) => setSettings(prev => ({
-                                ...prev,
-                                strategic_config: { ...prev.strategic_config, genai_cost_per_transaction: e.target.value }
-                            }))}
-                            InputProps={{ startAdornment: <Typography variant="caption" sx={{ mr: 1 }}>R$</Typography> }}
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={4}>
-                        <TextField
-                            fullWidth label="Licença Anual IDP" type="number"
-                            value={settings.strategic_config?.idp_license_annual || 5000}
-                            onChange={(e) => setSettings(prev => ({
-                                ...prev,
-                                strategic_config: { ...prev.strategic_config, idp_license_annual: e.target.value }
-                            }))}
-                            InputProps={{ startAdornment: <Typography variant="caption" sx={{ mr: 1 }}>R$</Typography> }}
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={4}>
-                        <TextField
-                            fullWidth label="Custo Reposição Turnover" type="number"
-                            value={settings.strategic_config?.turnover_replacement_cost_percentage || 20}
-                            onChange={(e) => setSettings(prev => ({
-                                ...prev,
-                                strategic_config: { ...prev.strategic_config, turnover_replacement_cost_percentage: e.target.value }
-                            }))}
-                            InputProps={{ endAdornment: <Typography variant="caption" sx={{ ml: 1 }}>%</Typography> }}
-                        />
-                    </Grid>
-                    <Grid item xs={12} md={4}>
-                        <TextField
-                            fullWidth label="Deflator de Acurácia (ROI)" type="number"
-                            value={settings.strategic_config?.roi_accuracy_percentage || 100}
-                            onChange={(e) => setSettings(prev => ({
-                                ...prev,
-                                strategic_config: { ...prev.strategic_config, roi_accuracy_percentage: e.target.value }
-                            }))}
-                            helperText="Percentual de confiança aplicado à economia projetada (ex: 90%)"
-                            InputProps={{ endAdornment: <Typography variant="caption" sx={{ ml: 1 }}>%</Typography> }}
-                        />
-                    </Grid>
-                </Grid>
-
-                <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
-                    <Button
-                        variant="contained"
-                        startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <Save />}
-                        size="large"
-                        onClick={handleSave}
-                        disabled={saving}
-                    >
-                        {saving ? 'Salvando...' : 'Salvar Todas as Configurações'}
-                    </Button>
-                </Box>
-            </Paper>
+            {/* TAB 1: Administração de Usuários */}
+            {tabIndex === 1 && (
+                <Paper elevation={3} sx={{ p: 4, mb: 4, bgcolor: '#fff8e1' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                        <Group color="secondary" sx={{ mr: 1 }} />
+                        <Typography variant="h6">Gestão de Usuários (Aprovação)</Typography>
+                    </Box>
+                    <TableContainer sx={{ mb: 2, border: '1px solid #e0e0e0', borderRadius: 2, bgcolor: 'white' }}>
+                        <Table size="small">
+                            <TableHead sx={{ bgcolor: '#f5f5f5' }}>
+                                <TableRow>
+                                    <TableCell>Email</TableCell>
+                                    <TableCell>Nome</TableCell>
+                                    <TableCell>Perfil</TableCell>
+                                    <TableCell align="center">Status</TableCell>
+                                    <TableCell align="center">Ações</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {users.map((user) => (
+                                    <TableRow key={user.uid}>
+                                        <TableCell>{user.email}</TableCell>
+                                        <TableCell>{user.displayName}</TableCell>
+                                        <TableCell>{user.role}</TableCell>
+                                        <TableCell align="center">
+                                            {user.isBlocked ?
+                                                <Chip label="Bloqueado" color="error" size="small" icon={<Block />} /> :
+                                                <Chip label="Ativo" color="success" size="small" icon={<CheckCircle />} />
+                                            }
+                                        </TableCell>
+                                        <TableCell align="center">
+                                            <Button
+                                                size="small"
+                                                variant={user.isBlocked ? "contained" : "outlined"}
+                                                color={user.isBlocked ? "success" : "error"}
+                                                onClick={() => handleToggleBlock(user.uid, user.isBlocked)}
+                                            >
+                                                {user.isBlocked ? "Aprovar / Desbloquear" : "Bloquear"}
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {users.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={5} align="center">Nenhum usuário encontrado.</TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </Paper>
+            )}
         </Container>
     );
 }

@@ -2,11 +2,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
     signInWithEmailAndPassword,
-    createUserWithEmailAndPassword, // <--- Importar isso
+    createUserWithEmailAndPassword,
     signOut,
     onAuthStateChanged
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore'; // <--- Importar setDoc
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 
 const AuthContext = createContext();
@@ -24,7 +24,6 @@ export function AuthProvider({ children }) {
         return signInWithEmailAndPassword(auth, email, password);
     }
 
-    // NOVA FUNÇÃO: Cadastro
     function signup(email, password) {
         return createUserWithEmailAndPassword(auth, email, password);
     }
@@ -34,6 +33,7 @@ export function AuthProvider({ children }) {
         return setDoc(doc(db, 'users', user.uid), {
             email: user.email,
             role: role,
+            isBlocked: true, // [SECURITY] Default to blocked for new users
             created_at: new Date().toISOString()
         });
     }
@@ -50,7 +50,17 @@ export function AuthProvider({ children }) {
                     const userDocRef = doc(db, 'users', user.uid);
                     const userDoc = await getDoc(userDocRef);
                     if (userDoc.exists()) {
-                        const role = userDoc.data().role || 'user';
+                        const data = userDoc.data();
+
+                        // [SECURITY] Check if blocked
+                        if (data.isBlocked) {
+                            console.warn(`[Auth] User ${user.email} is blocked.`);
+                            await logout();
+                            alert("Sua conta está bloqueada ou aguardando aprovação. Entre em contato com o administrador.");
+                            return;
+                        }
+
+                        const role = data.role || 'user';
                         console.log(`[Auth] Carregado perfil do banco para ${user.email}: ${role}`);
                         setUserRole(role);
                     } else {
@@ -86,8 +96,8 @@ export function AuthProvider({ children }) {
         userRole,
         isAdmin: userRole === 'admin',
         login,
-        signup, // <--- Exportar
-        createUserProfile, // <--- Exportar
+        signup,
+        createUserProfile,
         logout
     };
 
