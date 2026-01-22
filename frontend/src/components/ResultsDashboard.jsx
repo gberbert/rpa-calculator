@@ -453,7 +453,9 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
             volume: data.inputs_as_is.volume,
             aht: data.inputs_as_is.aht,
             fteCost: data.inputs_as_is.fte_cost,
-            errorRate: data.inputs_as_is.error_rate
+            errorRate: data.inputs_as_is.error_rate,
+            annualGrowth: data.inputs_as_is.annual_growth || data.inputs_as_is.annualGrowth || 0,
+            peakVolume: data.inputs_as_is.peak_volume || data.inputs_as_is.peakVolume || 0
         },
         complexity: data.complexity_input || {},
         strategic: data.strategic_input || {},

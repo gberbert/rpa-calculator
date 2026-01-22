@@ -25,6 +25,8 @@ class ProjectService {
                     aht: inputs.aht,
                     fte_cost: inputs.fteCost,
                     error_rate: inputs.errorRate || 0,
+                    annual_growth: inputs.annualGrowth || 0,
+                    peak_volume: inputs.peakVolume || 0,
                 },
                 complexity_input: complexity,
                 strategic_input: strategic || {},

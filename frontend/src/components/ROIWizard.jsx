@@ -169,7 +169,16 @@ export default function ROIWizard({ onComplete }) {
                     ...response.data,
                     // Garante que o valor local sobrescreva qualquer resposta do backend para este campo
                     opex_exemption: formData.opexExemption,
-                    opexExemption: formData.opexExemption
+                    opexExemption: formData.opexExemption,
+                    // Garante persistência visual imediata dos inputs secundários (Growth/Peak)
+                    inputs_as_is: {
+                        ...response.data.inputs_as_is,
+                        annual_growth: formData.inputs.annualGrowth,
+                        peak_volume: formData.inputs.peakVolume,
+                        // Mapeia também para camelCase se for usado assim em algum componente visual
+                        annualGrowth: formData.inputs.annualGrowth,
+                        peakVolume: formData.inputs.peakVolume
+                    }
                 };
                 console.log("Protected Data (Failsafe Applied):", protectedData.opex_exemption);
                 onComplete(protectedData);
