@@ -53,6 +53,11 @@ export default function StepSustainability({ data }) {
         else if (numSteps <= 50) points += 3;
         else points += 5;
 
+        // Customização (Sem Licença RPA)
+        if (data.complexity.useRpaLicense === 'no') {
+            points += 3;
+        }
+
         if (points >= 12) return { level: 'HIGH', label: 'Alta' };
         if (points >= 7) return { level: 'MEDIUM', label: 'Média' };
         return { level: 'LOW', label: 'Baixa' };

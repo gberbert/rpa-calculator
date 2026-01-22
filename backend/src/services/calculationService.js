@@ -56,6 +56,12 @@ class ComplexityService {
         else if (numSteps <= 50) totalPoints += 3;
         else totalPoints += 5;
 
+        // Customização (Sem Licença RPA)
+        // Lógica alinhada com Front-end: Penalidade de +3 pts se for custom (Python puro)
+        if (complexity.useRpaLicense === 'no') {
+            totalPoints += 3;
+        }
+
         // Classificação (5 Níveis)
         // Pontuação Máxima Estimada: 3 + 5 + 4 + 5 = 17
         // Pontuação Mínima: 1 + 1 + 1 + 1 = 4

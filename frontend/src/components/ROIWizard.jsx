@@ -162,7 +162,17 @@ export default function ROIWizard({ onComplete }) {
             const response = await projectService.createProject(payload);
 
             if (response && response.success && response.data) {
-                onComplete(response.data);
+                // FALLBACK DE SEGURANÇA (V2): Força a escolha local (formData) ignorando o backend se necessário
+                // O backend pode retornar 'isento' (valor default antigo) se não tiver reiniciado.
+                // A única fonte de verdade confiável agora é o formData do frontend.
+                const protectedData = {
+                    ...response.data,
+                    // Garante que o valor local sobrescreva qualquer resposta do backend para este campo
+                    opex_exemption: formData.opexExemption,
+                    opexExemption: formData.opexExemption
+                };
+                console.log("Protected Data (Failsafe Applied):", protectedData.opex_exemption);
+                onComplete(protectedData);
             } else {
                 throw new Error('O servidor não retornou os dados completos do projeto.');
             }

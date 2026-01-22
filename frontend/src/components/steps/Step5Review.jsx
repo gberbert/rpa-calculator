@@ -65,6 +65,11 @@ export default function Step5Review({ data, hideInstructions = false }) {
         else if (data.complexity.numSteps <= 50) points += 3;
         else points += 5;
 
+        // Customização (Sem Licença RPA) - Sincronizado com Step3 e Backend
+        if (data.complexity.useRpaLicense === 'no') {
+            points += 3;
+        }
+
         // Classificação (5 Níveis)
         if (points >= 14) return { level: 'MUITO COMPLEXA', color: 'error', label: 'Muito Complexa' };
         if (points >= 11) return { level: 'COMPLEXA', color: 'error', label: 'Complexa' };

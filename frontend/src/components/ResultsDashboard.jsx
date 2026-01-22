@@ -160,7 +160,10 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
     // Formula: ([Economia Anual (Ano1 + 2 x Ano2+)] / [Custo AS-IS x 3]) * Acuracia (Deflator) * 100
     // Opex Exemption: Se 'isento', Ano 2+ considera economia = AsIs (sem descontar Opex)
 
-    const isExempt = (data.opex_exemption || data.opexExemption || 'isento') === 'isento';
+    // Correção: Verifica explicitamente se é 'nao_isento'. Se for undefined, assume 'isento' (padrão).
+    // O backend retorna 'opex_exemption' (snake_case). O frontend local usa 'opexExemption' (camelCase).
+    const exemptionValue = data.opex_exemption || data.opexExemption;
+    const isExempt = exemptionValue !== 'nao_isento';
 
     // Simplificando variáveis para uso geral
     const asIs = results.as_is_cost_annual || 0;
@@ -454,7 +457,8 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
         },
         complexity: data.complexity_input || {},
         strategic: data.strategic_input || {},
-        opexExemption: data.opex_exemption || data.opexExemption // Passando a isenção para o review
+        // Usar o valor computado no início do componente para consistência total
+        opexExemption: exemptionValue
     };
 
     return (
@@ -497,7 +501,9 @@ export default function ResultsDashboard({ data, onNewCalculation }) {
                         <img src="/logo.png" alt="Logo" style={{ height: 50, marginRight: 20 }} />
                         <Box>
                             <Typography variant="h5" fontWeight="bold" color="primary.main">Proposta de Automação</Typography>
-                            <Typography variant="subtitle2" color="text.secondary">RPA Calculator</Typography>
+                            <Typography variant="subtitle2" color="text.secondary">
+                                RPA Calculator
+                            </Typography>
                         </Box>
                     </Box>
                     <Box sx={{ textAlign: 'right' }}>
